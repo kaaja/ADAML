@@ -22,7 +22,7 @@ from sklearn.model_selection import cross_val_score
 
 class LeastSquares:
     """ 
-    Least squares estimation of 2D function.
+    Least squares and Ridge estimation of 2D function.
     Takes in meshgrid versions of x, y and z
     """
     
@@ -85,15 +85,19 @@ class LeastSquares:
         self.zPredict = self.XHat.dot(self.betaHat)
 
         
-    def plot(self):
+    def plot(self, zPredict=0):
         xPlot, yPlot, zPlot = self.xPlot, self.yPlot, self.zPlot
-        zPredict = self.zPredict
+        try:
+            zPredict = self.zPredict
+        except:
+            None
         #z = self.z
         zPredictPlot = (np.reshape(zPredict, np.shape(zPlot))).T
         #zPredictPlot = zPredictPlot.T
         
         # Plot
         fig = plt.figure()
+        #fig, (ax,ax2) = plt.subplots(1,2, figsize=(12.5,5)) 
         ax = fig.gca(projection='3d')
         surf = ax.plot_surface(xPlot, yPlot, zPredictPlot, cmap=cm.coolwarm,
                                linewidth=0, antialiased=False) 
@@ -106,15 +110,15 @@ class LeastSquares:
         plt.show()
         
         fig = plt.figure()
-        ax = fig.gca(projection='3d')
-        surf = ax.plot_surface(xPlot, yPlot, zPlot, cmap=cm.coolwarm,
+        ax2 = fig.gca(projection='3d')
+        surf = ax2.plot_surface(xPlot, yPlot, zPlot, cmap=cm.coolwarm,
                                linewidth=0, antialiased=False) 
         #ax.set_zlim(-1.50, 25.0)
         #ax.set_zlim(-0.10, 1.40)
-        ax.zaxis.set_major_locator(LinearLocator(10))
-        ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+        ax2.zaxis.set_major_locator(LinearLocator(10))
+        ax2.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
         fig.colorbar(surf, shrink=0.5, aspect=5)
-        ax.set_title('True')
+        ax2.set_title('True')
         plt.show()        
         
         
@@ -128,7 +132,7 @@ class LeastSquares:
         #print('R2 score: %.4f' % self.r2)
         
 
-    def calculateVarianceBeta(self):
+    def calculateVarianceBeta(self, noise=0):
         XHat = self.XHat
         betaHat = self.betaHat
         z = self.z
@@ -139,6 +143,7 @@ class LeastSquares:
         #yFitted = XHat.dot(betaHat)
         yFitted = self.zPredict
         mse = 1/(len(self.x) -1)*np.sum((z - yFitted)**2)
+        #print('mse, self.noise', mse, noise)
 
         coefficientVariancesSLR = np.linalg.inv(XHat.T.dot(XHat)).dot(mse)
         W = np.linalg.inv(XHat.T.dot(XHat) + self.lambdaValue*np.eye(shapeXXT[0], shapeXXT[1])).dot(XHat.T).dot(XHat) 
@@ -522,7 +527,30 @@ class LeastSquares:
 class Problem:
     def __init__(self, x, y, z, trueFunction=False):
         self.xPlot, self.yPlot, self.zPlot = x, y, z
-        self.trueFunction = trueFunction
+        if trueFunction:
+            self.trueFunction = trueFunction
+        else:
+            self.trueFunction = self.frankeFunction
+
+    def preditionAndPlot(self, model='ridge', degree=5, lambdaValue=0, maxIterations=100000):
+        if model=='ridge':
+            ls = LeastSquares(self.xPlot, self.yPlot, self.zPlot, degree, trueFunction=self.trueFunction,\
+                 lambdaValue=lambdaValue)
+            ls.createDesignMatrix()
+            ls.estimate()
+            ls.predict()
+            ls.plot()
+        else:
+            lasso=linear_model.Lasso(alpha=lambdaValue, fit_intercept=False, max_iter=maxIterations)
+            polyLasso = PolynomialFeatures(degree)
+            XHatLasso = np.c_[np.reshape(self.xPlot, -1, 1), np.reshape(self.yPlot, -1, 1)] 
+            XHatLasso = polyLasso.fit_transform(XHatLasso)
+            lasso.fit(XHatLasso, np.reshape(self.zPlot, -1, 1))
+            ls = LeastSquares(self.xPlot, self.yPlot, self.zPlot, degree, trueFunction=self.trueFunction,\
+                 lambdaValue=lambdaValue)
+            zPredict = lasso.predict(XHatLasso)
+            ls.plot(zPredict)
+
         
     def lsKfold(self, numberOfFolds=10, maxDegree=5):
         self.maxDegree = maxDegree
@@ -650,6 +678,9 @@ class Problem:
         ax2.set_xlabel('Degrees of freedom', fontsize = fontSize*1.25)
         ax.set_xticks(xTicks)
         ax2.set_xticks(xTicks)
+        ax2.set_ylim(0,1)
+        ax2.set_yticks(np.arange(0,1+.1, .1))
+
         legendsAx2 = [r'$Bias^2$', 'Variance']
 
 
@@ -705,7 +736,7 @@ class Problem:
         mseTotal = varianceMse + meanMseSquared
         return varianceMse, meanMseSquared, mseTotal
         
-    def mseAllModels(self, noise=None, franke=True, maxDegree=5, numberOfFolds = 10, ridgeLambda = 1, lassoLambda = .001):
+    def mseAllModels(self, noise=None, franke=False, maxDegree=5, numberOfFolds = 10, ridgeLambda = 1, lassoLambda = .001, maxIterations=10000):
         '''
         np.random.seed(1)
         observationNumber = 20
@@ -729,7 +760,7 @@ class Problem:
             def frankeNoise(z, noiseSize):
                 return z+ noiseSize*np.random.randn(len(z))
 
-            zPlot = frankeNoise(self.zPlot, noiseSize)
+            self.zPlot = frankeNoise(self.zPlot, noiseSize)
         self.maxDegree = maxDegree
         degrees =np.arange(1, self.maxDegree+1)
         bootstraps = 100
@@ -738,6 +769,7 @@ class Problem:
         self.r2BS, self.biasPython , self.variancePython, self.mseAllBs, \
         self.biasRealDataBS, self.varianceRealDataBS, self.totalMSErealDataBS = \
         [], [], [], [], [], [], [], [], [], [], [], [], []
+        self.varBetasTraining = []
 
         self.biasKFLs, self.varianceKFLs, self.noiseKFLs, self.totalErrorKFLs, self.mseKFLs, self.mseTrainingKFLs, \
         self.r2KFLs, self.mseKFStdLs, self.biasRealDataKFLs, self.varianceRealDataKFLs, \
@@ -761,18 +793,19 @@ class Problem:
 
 
         for degree in degrees:
-            lsTrain = LeastSquares(self.xPlot, self.yPlot, zPlot, degree,trueFunction=self.trueFunction, lambdaValue=None)
+            lsTrain = LeastSquares(self.xPlot, self.yPlot, self.zPlot, degree,trueFunction=self.trueFunction, lambdaValue=None)
             lsTrain.createDesignMatrix()
             lsTrain.estimate()
             lsTrain.predict()
             lsTrain.calculateErrorScores()
-            lsTrain.calculateVarianceBeta()
+            lsTrain.calculateVarianceBeta(noise=self.noise)
             self.mseTrainingLs.append(lsTrain.mse)
+            self.varBetasTraining.append(lsTrain.varBeta)
             self.R2trainingLs.append(lsTrain.r2)
             self.varBetasTrainingLs.append(lsTrain.varBeta)
             self.betasTrainingLs.append(lsTrain.betaHat)
 
-            ridgeTrain = LeastSquares(self.xPlot, self.yPlot, zPlot, degree,trueFunction=self.trueFunction, \
+            ridgeTrain = LeastSquares(self.xPlot, self.yPlot, self.zPlot, degree,trueFunction=self.trueFunction, \
                                       lambdaValue=self.ridgeLambda)
             ridgeTrain.createDesignMatrix()
             ridgeTrain.estimate()
@@ -784,16 +817,16 @@ class Problem:
             self.varBetasTrainingRidge.append(ridgeTrain.varBeta)
             self.betasTrainingRidge.append(ridgeTrain.betaHat)
 
-            lasso=linear_model.Lasso(alpha=lassoLambda, fit_intercept=False, max_iter=10000)
+            lasso=linear_model.Lasso(alpha=lassoLambda, fit_intercept=False, max_iter=maxIterations)
             polyLasso = PolynomialFeatures(degree)
             XHatLasso = np.c_[np.reshape(self.xPlot, -1, 1), np.reshape(self.yPlot, -1, 1)] 
             XHatLasso = polyLasso.fit_transform(XHatLasso)
-            lasso.fit(XHatLasso, np.reshape(zPlot, -1, 1))
+            lasso.fit(XHatLasso, np.reshape(self.zPlot, -1, 1))
             zPredictLasso = lasso.predict(XHatLasso)
-            self.mseTrainingLasso.append(mean_squared_error(np.reshape(zPlot, -1, 1), zPredictLasso))
+            self.mseTrainingLasso.append(mean_squared_error(np.reshape(self.zPlot, -1, 1), zPredictLasso))
 
 
-            lsKF = LeastSquares(self.xPlot, self.yPlot, zPlot, degree,trueFunction=self.trueFunction)
+            lsKF = LeastSquares(self.xPlot, self.yPlot, self.zPlot, degree,trueFunction=self.trueFunction)
             lsKF.kFold(numberOfFolds=numberOfFolds)
             lsKF.calculateVarianceBeta()
             self.varBetasKFLs.append(lsKF.varBeta)
@@ -810,7 +843,7 @@ class Problem:
             self.totalMSErealDataKFLs.append(lsKF.mseTotalRealData)
             self.betasKFLs.append(lsKF.betaList)
 
-            ridgeKF = LeastSquares(self.xPlot, self.yPlot, zPlot, degree,trueFunction=self.trueFunction, lambdaValue = ridgeLambda)
+            ridgeKF = LeastSquares(self.xPlot, self.yPlot, self.zPlot, degree,trueFunction=self.trueFunction, lambdaValue = ridgeLambda)
             ridgeKF.kFold(numberOfFolds=numberOfFolds)
             ridgeKF.calculateVarianceBeta()
             self.varBetasKFRidge.append(ridgeKF.varBeta)
@@ -828,8 +861,8 @@ class Problem:
             self.betasKFRidge.append(ridgeKF.betaList)
 
 
-            lassoKF = linear_model.Lasso(alpha=lassoLambda, fit_intercept=False, max_iter=10000)
-            lasso_scores = -cross_val_score(lassoKF, XHatLasso, np.reshape(zPlot, -1, 1),
+            lassoKF = linear_model.Lasso(alpha=lassoLambda, fit_intercept=False, max_iter=maxIterations)
+            lasso_scores = -cross_val_score(lassoKF, XHatLasso, np.reshape(self.zPlot, -1, 1),
                                      scoring="neg_mean_squared_error", cv=numberOfFolds)  
             #varBetasKFRidge.append(ridgeKF.varBeta)
             #biasKFRidge.append(ridgeKF.bias2)
@@ -906,7 +939,8 @@ class Problem:
         
         
     def punishmenParameterAnalysis(self, degree=5, numberOfFolds = 10, startLambdaRidge = 0.05, \
-                                   startLambdaLasso = 0.000125, numberOfPoints = 6):
+                                   startLambdaLasso = 0.000125, numberOfPoints = 6,\
+                                    maxIterations = 100000):
 
         bootstraps = 100
 
@@ -932,9 +966,9 @@ class Problem:
         R2trainingRidge, mseTrainingRidge, varBetasTrainingRidge, betasTrainingRidge= [], [], [], []
         R2trainingLasso, mseTrainingLasso, varBetasTrainingLasso, betasTrainingLasso= [], [], [], []
 
-        startLambdaRidge = 0.05
-        startLambdaLasso = 0.000125
-        numberOfPoints = 6
+        #startLambdaRidge = 0.05
+        #startLambdaLasso = 0.000125
+        #numberOfPoints = 6
 
         ridgeLambdas = np.array([startLambdaRidge*1.5**i for i in range(numberOfPoints)]) #np.arange(0.0025, 0.015+ 0.0025, 0.0025)
         lassoLambdas = np.array([startLambdaLasso*1.5**i for i in range(numberOfPoints)]) #np.arange(0.0025, 0.015+ 0.0025, 0.0025)
@@ -963,7 +997,7 @@ class Problem:
             varBetasTrainingRidge.append(ridgeTrain.varBeta)
             betasTrainingRidge.append(ridgeTrain.betaHat)
 
-            lasso=linear_model.Lasso(alpha=lassoLambda, fit_intercept=False, max_iter=100000)
+            lasso=linear_model.Lasso(alpha=lassoLambda, fit_intercept=False, max_iter=maxIterations)
             polyLasso = PolynomialFeatures(degree)
             XHatLasso = np.c_[np.reshape(self.xPlot, -1, 1), np.reshape(self.yPlot, -1, 1)] 
             XHatLasso = polyLasso.fit_transform(XHatLasso)
@@ -1007,7 +1041,7 @@ class Problem:
             betasKFRidge.append(ridgeKF.betaList)
 
 
-            lassoKF = linear_model.Lasso(alpha=lassoLambda, fit_intercept=False, max_iter=100000)
+            lassoKF = linear_model.Lasso(alpha=lassoLambda, fit_intercept=False, max_iter=maxIterations)
             lasso_scores = -cross_val_score(lassoKF, XHatLasso, np.reshape(self.zPlot, -1, 1),
                                      scoring="neg_mean_squared_error", cv=numberOfFolds)  
             #varBetasKFRidge.append(ridgeKF.varBeta)
@@ -1080,6 +1114,8 @@ class Problem:
             ax2.tick_params(axis='both', which='major', labelsize=fontSize*1.25)
             plt.tight_layout()
             '''
+        
+
     
     def FrankeFunction(self, x,y):
         term1 = 0.75*np.exp(-(0.25*(9*x-2)**2) - 0.25*((9*y-2)**2))
