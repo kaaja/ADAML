@@ -84,6 +84,9 @@ class LeastSquares:
     def predict(self):
         self.zPredict = self.XHat.dot(self.betaHat)
 
+    def calculateResiduals(self):
+        self.residuals = self.zPredict - self.z
+
         
     def plot(self, zPredict=0):
         xPlot, yPlot, zPlot = self.xPlot, self.yPlot, self.zPlot
@@ -540,6 +543,12 @@ class Problem:
             ls.estimate()
             ls.predict()
             ls.plot()
+            ls.calculateResiduals()
+            #fig, ax = plt.subplots()
+            #ax.plot(ls.residuals)
+            n, bins, patches = plt.hist(ls.residuals, 50, normed=1, facecolor='green', alpha=0.75)
+            import matplotlib.mlab as mlab
+            
         else:
             lasso=linear_model.Lasso(alpha=lambdaValue, fit_intercept=False, max_iter=maxIterations)
             polyLasso = PolynomialFeatures(degree)
@@ -1114,7 +1123,7 @@ class Problem:
             ax2.tick_params(axis='both', which='major', labelsize=fontSize*1.25)
             plt.tight_layout()
             '''
-        
+    
 
     
     def FrankeFunction(self, x,y):
