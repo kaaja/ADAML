@@ -149,7 +149,9 @@ class LeastSquares:
         #print('mse, self.noise', mse, noise)
         if plotResiduals:
             self.calculateResiduals()
-            n, bins, patches = plt.hist(self.residuals, 50, normed=1, facecolor='green', alpha=0.75)
+            plt.figure()
+            n, bins, patches = plt.hist(self.residuals, 50, density=1, facecolor='green', alpha=0.75)
+            plt.title('Degree: %d' %self.degree)
 
         coefficientVariancesSLR = np.linalg.inv(XHat.T.dot(XHat)).dot(mse)
         W = np.linalg.inv(XHat.T.dot(XHat) + self.lambdaValue*np.eye(shapeXXT[0], shapeXXT[1])).dot(XHat.T).dot(XHat) 
@@ -550,7 +552,8 @@ class Problem:
                 ls.calculateResiduals()
             #fig, ax = plt.subplots()
             #ax.plot(ls.residuals)
-                n, bins, patches = plt.hist(ls.residuals, 50, normed=1, facecolor='green', alpha=0.75)
+                plt.figure()
+                n, bins, patches = plt.hist(ls.residuals, 50, density=1, facecolor='green', alpha=0.75)
             
         else:
             lasso=linear_model.Lasso(alpha=lambdaValue, fit_intercept=False, max_iter=maxIterations)
@@ -749,7 +752,7 @@ class Problem:
         mseTotal = varianceMse + meanMseSquared
         return varianceMse, meanMseSquared, mseTotal
         
-    def mseAllModels(self, noise=None, franke=False, maxDegree=5, numberOfFolds = 10, ridgeLambda = 1, lassoLambda = .001, maxIterations=10000, plotResiduals=False):
+    def mseAllModels(self, noise=None, franke=False, maxDegree=5, numberOfFolds = 10, ridgeLambda = 1, lassoLambda = .001, maxIterations=10000, plotResiduals=False, residualsDegree=1):
         '''
         np.random.seed(1)
         observationNumber = 20
@@ -811,7 +814,10 @@ class Problem:
             lsTrain.estimate()
             lsTrain.predict()
             lsTrain.calculateErrorScores()
-            lsTrain.calculateVarianceBeta(noise=self.noise, plotResiduals=plotResiduals)
+            if plotResiduals and degree == residualsDegree:
+                lsTrain.calculateVarianceBeta(noise=self.noise, plotResiduals=plotResiduals)
+            else:
+                lsTrain.calculateVarianceBeta(noise=self.noise)
             self.mseTrainingLs.append(lsTrain.mse)
             self.varBetasTraining.append(lsTrain.varBeta)
             self.R2trainingLs.append(lsTrain.r2)
