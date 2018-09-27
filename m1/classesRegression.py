@@ -135,7 +135,7 @@ class LeastSquares:
         #print('R2 score: %.4f' % self.r2)
         
 
-    def calculateVarianceBeta(self, noise=0):
+    def calculateVarianceBeta(self, noise=0, plotResiduals=False):
         XHat = self.XHat
         betaHat = self.betaHat
         z = self.z
@@ -147,6 +147,9 @@ class LeastSquares:
         yFitted = self.zPredict
         mse = 1/(len(self.x) -1)*np.sum((z - yFitted)**2)
         #print('mse, self.noise', mse, noise)
+        if plotResiduals:
+            self.calculateResiduals()
+            n, bins, patches = plt.hist(self.residuals, 50, normed=1, facecolor='green', alpha=0.75)
 
         coefficientVariancesSLR = np.linalg.inv(XHat.T.dot(XHat)).dot(mse)
         W = np.linalg.inv(XHat.T.dot(XHat) + self.lambdaValue*np.eye(shapeXXT[0], shapeXXT[1])).dot(XHat.T).dot(XHat) 
@@ -535,7 +538,7 @@ class Problem:
         else:
             self.trueFunction = self.frankeFunction
 
-    def preditionAndPlot(self, model='ridge', degree=5, lambdaValue=0, maxIterations=100000):
+    def preditionAndPlot(self, model='ridge', degree=5, lambdaValue=0, maxIterations=100000, plotResiduals=False):
         if model=='ridge':
             ls = LeastSquares(self.xPlot, self.yPlot, self.zPlot, degree, trueFunction=self.trueFunction,\
                  lambdaValue=lambdaValue)
@@ -543,11 +546,11 @@ class Problem:
             ls.estimate()
             ls.predict()
             ls.plot()
-            ls.calculateResiduals()
+            if plotResiduals:
+                ls.calculateResiduals()
             #fig, ax = plt.subplots()
             #ax.plot(ls.residuals)
-            n, bins, patches = plt.hist(ls.residuals, 50, normed=1, facecolor='green', alpha=0.75)
-            import matplotlib.mlab as mlab
+                n, bins, patches = plt.hist(ls.residuals, 50, normed=1, facecolor='green', alpha=0.75)
             
         else:
             lasso=linear_model.Lasso(alpha=lambdaValue, fit_intercept=False, max_iter=maxIterations)
@@ -659,6 +662,7 @@ class Problem:
         ax2.legend(legends, loc='center left', bbox_to_anchor=(1, 0.5)\
                    , fontsize = fontSize)
         #ax2.set_ylim(.08, .11)
+
         
     def mseFigures(self, lastDegree=5):
         fig, (ax,ax2) = plt.subplots(1,2, figsize=(12.5,5))  # 1 row, 2 columns
@@ -745,7 +749,7 @@ class Problem:
         mseTotal = varianceMse + meanMseSquared
         return varianceMse, meanMseSquared, mseTotal
         
-    def mseAllModels(self, noise=None, franke=False, maxDegree=5, numberOfFolds = 10, ridgeLambda = 1, lassoLambda = .001, maxIterations=10000):
+    def mseAllModels(self, noise=None, franke=False, maxDegree=5, numberOfFolds = 10, ridgeLambda = 1, lassoLambda = .001, maxIterations=10000, plotResiduals=False):
         '''
         np.random.seed(1)
         observationNumber = 20
@@ -807,7 +811,7 @@ class Problem:
             lsTrain.estimate()
             lsTrain.predict()
             lsTrain.calculateErrorScores()
-            lsTrain.calculateVarianceBeta(noise=self.noise)
+            lsTrain.calculateVarianceBeta(noise=self.noise, plotResiduals=plotResiduals)
             self.mseTrainingLs.append(lsTrain.mse)
             self.varBetasTraining.append(lsTrain.varBeta)
             self.R2trainingLs.append(lsTrain.r2)
