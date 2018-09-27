@@ -150,8 +150,9 @@ class LeastSquares:
         if plotResiduals:
             self.calculateResiduals()
             plt.figure()
-            n, bins, patches = plt.hist(self.residuals, 50, density=1, facecolor='green', alpha=0.75)
-            plt.title('Degree: %d' %self.degree)
+            n, bins, patches = plt.hist(self.residuals, 50, density=True, \
+            facecolor='green', alpha=0.75)
+            plt.title('Noise: %.2f \n Degree: %d' %(noise,self.degree))
 
         coefficientVariancesSLR = np.linalg.inv(XHat.T.dot(XHat)).dot(mse)
         W = np.linalg.inv(XHat.T.dot(XHat) + self.lambdaValue*np.eye(shapeXXT[0], shapeXXT[1])).dot(XHat.T).dot(XHat) 
@@ -553,7 +554,8 @@ class Problem:
             #fig, ax = plt.subplots()
             #ax.plot(ls.residuals)
                 plt.figure()
-                n, bins, patches = plt.hist(ls.residuals, 50, density=1, facecolor='green', alpha=0.75)
+                n, bins, patches = plt.hist(ls.residuals, 50, density=True, \
+                facecolor='green', alpha=0.75)
             
         else:
             lasso=linear_model.Lasso(alpha=lambdaValue, fit_intercept=False, max_iter=maxIterations)
