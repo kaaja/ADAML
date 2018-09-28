@@ -135,7 +135,7 @@ class LeastSquares:
         #print('R2 score: %.4f' % self.r2)
         
 
-    def calculateVarianceBeta(self, noise=0, plotResiduals=False):
+    def calculateVarianceBeta(self, noise=0, plotResiduals=False, nBins=50):
         XHat = self.XHat
         betaHat = self.betaHat
         z = self.z
@@ -150,9 +150,9 @@ class LeastSquares:
         if plotResiduals:
             self.calculateResiduals()
             plt.figure()
-            n, bins, patches = plt.hist(self.residuals, 50, density=True, \
+            n, bins, patches = plt.hist(self.residuals, nBins, density=True, \
             facecolor='green', alpha=0.75)
-            plt.title('Noise: %.2f \n Degree: %d' %(noise,self.degree))
+            plt.title('Residuals \n Noise: %.2f, Degree: %d' %(noise,self.degree))
 
         coefficientVariancesSLR = np.linalg.inv(XHat.T.dot(XHat)).dot(mse)
         W = np.linalg.inv(XHat.T.dot(XHat) + self.lambdaValue*np.eye(shapeXXT[0], shapeXXT[1])).dot(XHat.T).dot(XHat) 
@@ -386,10 +386,10 @@ class LeastSquares:
             ax.set_ylabel('Running mean MSE')
             
             fig4, ax4 = plt.subplots()
-            ax4.plot(np.arange(1,len(self.mseBootStrapMA)+1), (self.varMSE/self.mseBootStrapMA)*100)
-            ax4.set_title('Bootstrap \n Running (Variance MSE/Mean MSE)*100')
+            ax4.plot(np.arange(1,len(self.mseBootStrapMA)+1), (np.sqrt(self.varMSE)/self.mseBootStrapMA)*100)
+            ax4.set_title('Bootstrap \n Running (Sd(MSE)/Mean MSE)*100')
             ax4.set_xlabel('Number of bootsraps')
-            ax4.set_ylabel('Running variance MSE')
+            #ax4.set_ylabel('Running variance MSE')
             
             fig2, ax2 = plt.subplots()
             ax2.plot(np.arange(1,len(self.R2BootstrapMA )+1), self.R2BootstrapMA )
@@ -398,8 +398,8 @@ class LeastSquares:
             ax2.set_ylabel('Running Mean R2')
             
             fig3, ax3 = plt.subplots()
-            ax3.plot(np.arange(1,len(self.R2BootstrapMA )+1), self.varianceBetaBootstrap )
-            ax3.set_title('Bootstrap \n Var(Beta) (Running)')
+            ax3.plot(np.arange(1,len(self.R2BootstrapMA )+1), self.varianceBetaBootstrap)
+            ax3.set_title('Bootstrap \n Sd(\Beta)/Beta (Running)')
             ax3.set_xlabel('Number of bootsraps')
             ax3.set_ylabel('Var(Beta)')
             
@@ -430,6 +430,8 @@ class LeastSquares:
         noiseMatrix = np.zeros_like(bias2Matrix)
         totalErrorMatrix = np.zeros_like(bias2Matrix)
         totalErrorMatrixForTesting = np.zeros_like(bias2Matrix)    
+
+        errorMatrix = np.zeros_like(bias2Matrix) 
         
         for i in range(self.numberOfObservations):
             for j in range(self.numberOfObservations):
@@ -498,6 +500,8 @@ class LeastSquares:
                 self.zPredictDict[coordinate].append(self.zPredict[index])
                 noiseDict[coordinate].append((self.z[index] - self.trueFunction(self.x[index], self.y[index]))**2)
                 totalErrorDict[coordinate].append((self.z[index] - self.zPredict[index])**2)
+                errorMatrix[coordinate] = self.z[index] - self.zPredict[index]
+
         #print('\n zPredictDict inside ', self.zPredictDict)
         xForFunction, yForFunction = np.ravel(self.xPlot), np.ravel(self.yPlot)
         fValues = self.trueFunction(xForFunction, yForFunction)
@@ -516,14 +520,30 @@ class LeastSquares:
         self.noise = np.nanmean(np.reshape(noiseMatrix, -1, 1))
         self.totalError = np.nanmean(np.reshape(totalErrorMatrix, -1, 1))
         self.totalErrorForTesting = np.nanmean(np.reshape(totalErrorMatrixForTesting, -1, 1))
+        #print('difference reshape', self.totalError/np.nanmean(totalErrorMatrix))
         
-        # Bias-variance for cases when true function unknown
+        # Bias-variance for cases when true function unknown, METHOD 1 (Baed on MSE's only)
         self.varianceMSERealData = np.var(self.mseSciKit)
         self.meanMSEsquaredRealData = (np.mean(self.mseSciKit))**2
         self.mseTotalRealData = norm(self.mseSciKit)
         self.mseTotalRealData = self.mseTotalRealData**2/numberOfFolds
         '''print('\n var+bias \n', self.varianceMSERealData + self.meanMSEsquaredRealData, \
              '\n mseTotal \n', self.mseTotalRealData )'''
+
+        # Bias-variance, true function unknown, METHOD 2 all observations
+        mseFromErrorMatrix = np.mean(errorMatrix**2)
+        #print('\n mseFromErrorMatrix/self.totalError\n',  mseFromErrorMatrix/self.totalError) # Equals 1
+        print('\n self.zPredict \n', self.zPredict)
+        self.varianceMethod2 = np.sum( (self.zPredict - np.mean(self.zPredict))**2 )/len(self.zPredict)#np.var(self.zPredict)#np.var(errorMatrix)
+        meanError = np.mean(errorMatrix)
+        self.bias2Method2 =  np.sum( (np.reshape(self.zPlot, -1,1) - np.mean(self.zPredict))**2 )/len(self.zPredict)#np.mean((self.zPredict - np.mean(self.zPredict))**2)#meanError**2
+        self.mseMethod2 = np.mean(errorMatrix**2)
+        self.mseMethod2SumBiasVariance = self.varianceMethod2 + self.bias2Method2
+        #print('\n self.mseMethod2SumBiasVariance/self.mseMethod2 \n', self.mseMethod2SumBiasVariance/self.mseMethod2)
+        #print('\n errorMatrix \n', errorMatrix, '\n meanError \n', meanError, '\n type(errorMatrix\n',type(errorMatrix))
+        #print('\n np.shape(errorMatrix \n ',np.shape(errorMatrix))
+        print('\n self.varianceMethod2, self.bias2Method2\n', self.varianceMethod2, self.bias2Method2)
+
        
     def FrankeFunction(self, x,y):
         term1 = 0.75*np.exp(-(0.25*(9*x-2)**2) - 0.25*((9*y-2)**2))
@@ -536,6 +556,7 @@ class LeastSquares:
 class Problem:
     def __init__(self, x, y, z, trueFunction=False):
         self.xPlot, self.yPlot, self.zPlot = x, y, z
+        self.xPlotOrg, self.yPlotOrg, self.zPlotOrg = x, y, z
         if trueFunction:
             self.trueFunction = trueFunction
         else:
@@ -580,8 +601,8 @@ class Problem:
         [], [], [], [], [], [], [], [], [], [], [], [], []
         self.biasKF, self.varianceKF, self.noiseKF, self.totalErrorKF, self.mseKF, self.mseTrainingKF, \
         self.r2KF, self.mseKFStd, self.biasRealDataKF, self.varianceRealDataKF, self.totalMSErealDataKF,\
-        self.betasKF, self.varBetasKF= \
-        [], [], [], [], [], [], [], [], [], [], [], [], []
+        self.betasKF, self.varBetasKF, self.biasRealDataKF2, self.varianceRealDataKF2= \
+        [], [], [], [], [], [], [], [], [], [], [], [], [], [], []
         self.R2training, self.mseTraining, self.varBetasTraining, self.betasTraining = [], [], [], []
 
         for degree in self.degrees:
@@ -623,8 +644,10 @@ class Problem:
             self.mseKFStd.append(np.std(lsKF.mseSciKit)/np.mean(lsKF.mseSciKit))
             self.mseTrainingKF.append(np.mean(lsKF.mseTraining))
             self.r2KF.append(np.mean(lsKF.R2SciKit))
-            self.biasRealDataKF.append(lsKF.meanMSEsquaredRealData)
+            self.biasRealDataKF.append(lsKF.meanMSEsquaredRealData) # check
+            self.biasRealDataKF2.append(lsKF.bias2Method2)
             self.varianceRealDataKF.append(lsKF.varianceMSERealData)
+            self.varianceRealDataKF2.append(lsKF.varianceMethod2)
             self.totalMSErealDataKF.append(lsKF.mseTotalRealData)
             self.betasKF.append(lsKF.betaList)
             
@@ -658,7 +681,7 @@ class Problem:
         #ax2.set_xlabel(r'$$')
         #ax2.set_ylabel(r"$C_d$")
         fontSize = 20
-        ax2.set_title(r'$Sd(\hat{\beta})/\hat{\beta}$')
+        ax2.set_title(r'$Sd(\hat{\beta})/\hat{\beta},\;$ Noise term: %.2f' %self.noise)
         ax2.set_xticks((ind + width)*1.2 )#/ 2)
         ax2.set_xticklabels(variableNames)
         legends = [r'$Degree \; 1$',r'$Degree\;  2$' , r'$Degree\;  3$', r'$Degree \; 4$', r'$Degree \; 5$'   ]
@@ -666,6 +689,7 @@ class Problem:
         ax2.set_position([box.x0, box.y0, box.width * 0.8, box.height])
         ax2.legend(legends, loc='center left', bbox_to_anchor=(1, 0.5)\
                    , fontsize = fontSize)
+        #ax2.set_title(r'$Var(\hat{\beta}),\;$ Noise term: %.2f' %self.noise)
         #ax2.set_ylim(.08, .11)
 
         
@@ -738,14 +762,32 @@ class Problem:
         ax.set_ylabel('Share of total MSE', fontsize = fontSize*1.25)
         ax.set_xticks(xTicks)
         legendsAx2 = [r'$Bias^2$', 'Variance', '1']
-
-
         box = ax.get_position()
         ax.set_position([box.x0, box.y0, box.width * 1.0, box.height*.8])
         ax.legend(legendsAx2, loc='center left', bbox_to_anchor=(0.2, -0.55), \
                    fontsize = fontSize, ncol=2)
         ax.tick_params(axis='both', which='major', labelsize=fontSize*1.25)
-        seaborn.set_context("notebook", font_scale=1.5, rc={"lines.linewidth": 4.5})
+        #plt.tight_layout()
+
+        fig, ax = plt.subplots(figsize=(8,4))
+        total = np.array(self.biasRealDataKF2[:lastDegree])+np.array(self.varianceRealDataKF2[:lastDegree])
+        #for r2Method, label in zip( r2Methods, legends): # mseTrainingBS, mseTrainingKF,
+         #   ax.plot(degrees[:lastDegree], r2Method[:lastDegree])#, label=label)
+        ax.plot(self.degrees[:lastDegree], np.array(self.biasRealDataKF2[:lastDegree])/total[:lastDegree])
+        ax.plot(self.degrees[:lastDegree], np.array(self.varianceRealDataKF2[:lastDegree])/total[:lastDegree])
+        #ax.plot(degrees[:lastDegree], np.array(biasRealDataKF[:lastDegree]))
+        #ax.plot(degrees[:lastDegree], np.array(varianceRealDataKF[:lastDegree]))
+
+        ax.set_title('Bias-variance decomposition \n K-fold', fontsize = fontSize*1.5)
+        ax.set_xlabel('Degrees of freedom', fontsize = fontSize*1.25)
+        ax.set_ylabel('Share of total MSE', fontsize = fontSize*1.25)
+        ax.set_xticks(xTicks)
+        legendsAx2 = [r'$Bias^2$', 'Variance', '1']
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width * 1.0, box.height*.8])
+        ax.legend(legendsAx2, loc='center left', bbox_to_anchor=(0.2, -0.55), \
+                   fontsize = fontSize, ncol=2)
+        ax.tick_params(axis='both', which='major', labelsize=fontSize*1.25)
         #plt.tight_layout()
         
     def biasVariance(self, mses):
@@ -754,7 +796,7 @@ class Problem:
         mseTotal = varianceMse + meanMseSquared
         return varianceMse, meanMseSquared, mseTotal
         
-    def mseAllModels(self, noise=None, franke=False, maxDegree=5, numberOfFolds = 10, ridgeLambda = 1, lassoLambda = .001, maxIterations=10000, plotResiduals=False, residualsDegree=1):
+    def mseAllModels(self, noise=None, franke=False, maxDegree=5, numberOfFolds = 10, ridgeLambda = 1, lassoLambda = .001, maxIterations=10000, plotResiduals=False, nBins=50, residualsDegree=1):
         '''
         np.random.seed(1)
         observationNumber = 20
@@ -769,6 +811,8 @@ class Problem:
         self.lassoLambda = lassoLambda
         self.noise = noise
         
+        np.random.seed(1)
+
         if franke:
             if noise==None:
                 noiseSize= 0
@@ -778,7 +822,7 @@ class Problem:
             def frankeNoise(z, noiseSize):
                 return z+ noiseSize*np.random.randn(len(z))
 
-            self.zPlot = frankeNoise(self.zPlot, noiseSize)
+            self.zPlot = frankeNoise(self.zPlotOrg, noiseSize)
         self.maxDegree = maxDegree
         degrees =np.arange(1, self.maxDegree+1)
         bootstraps = 100
@@ -791,19 +835,21 @@ class Problem:
 
         self.biasKFLs, self.varianceKFLs, self.noiseKFLs, self.totalErrorKFLs, self.mseKFLs, self.mseTrainingKFLs, \
         self.r2KFLs, self.mseKFStdLs, self.biasRealDataKFLs, self.varianceRealDataKFLs, \
-        self.totalMSErealDataKFLs, self.betasKFLs, self.varBetasKFLs= \
-        [], [], [], [], [], [], [], [], [], [], [], [], []
+        self.totalMSErealDataKFLs, self.betasKFLs, self.varBetasKFLs, self.biasRealDataKFLs2, \
+        self.varianceRealDataKFLs2 = \
+        [], [], [], [], [], [], [], [], [], [], [], [], [], [], []
 
         self.biasKFRidge, self.varianceKFRidge, self.noiseKFRidge, self.totalErrorKFRidge, \
         self.mseKFRidge, self.mseTrainingKFRidge, self.r2KFRidge, self.mseKFStdRidge, \
         self.biasRealDataKFRidge, self.varianceRealDataKFRidge, self.totalMSErealDataKFRidge,\
-        self.betasKFRidge, self.varBetasKFRidge= \
-        [], [], [], [], [], [], [], [], [], [], [], [], []
+        self.betasKFRidge, self.varBetasKFRidge, self.biasRealDataKFRidge2, \
+         self.varianceRealDataKFRidge2= \
+        [], [], [], [], [], [], [], [], [], [], [], [], [], [], []
         
         self.biasKFLasso, self.varianceKFLasso, self.noiseKFLasso, self.totalErrorKFLasso, self.mseKFLasso, \
         self.mseTrainingKFLasso, self.r2KFLasso, self.mseKFStdLasso, self.biasRealDataKFLasso, \
-        self.varianceRealDataKFLasso, self.totalMSErealDataKFLasso, self.betasKFLasso, self.varBetasKFLasso= \
-        [], [], [], [], [], [], [], [], [], [], [], [], []
+        self.varianceRealDataKFLasso, self.totalMSErealDataKFLasso, self.betasKFLasso, self.varBetasKFLasso, self.biasRealDataKFLasso2, self.varianceRealDataKFLasso2 = \
+        [], [], [], [], [], [], [], [], [], [], [], [], [], [], []
 
         self.R2trainingLs, self.mseTrainingLs, self.varBetasTrainingLs, self.betasTrainingLs = [], [], [], []
         self.R2trainingRidge, self.mseTrainingRidge, self.varBetasTrainingRidge, self.betasTrainingRidge= [], [], [], []
@@ -817,7 +863,8 @@ class Problem:
             lsTrain.predict()
             lsTrain.calculateErrorScores()
             if plotResiduals and degree == residualsDegree:
-                lsTrain.calculateVarianceBeta(noise=self.noise, plotResiduals=plotResiduals)
+                lsTrain.calculateVarianceBeta(noise=self.noise, plotResiduals=plotResiduals,\
+                                              nBins=nBins)
             else:
                 lsTrain.calculateVarianceBeta(noise=self.noise)
             self.mseTrainingLs.append(lsTrain.mse)
@@ -825,6 +872,8 @@ class Problem:
             self.R2trainingLs.append(lsTrain.r2)
             self.varBetasTrainingLs.append(lsTrain.varBeta)
             self.betasTrainingLs.append(lsTrain.betaHat)
+
+            self.lsTrain = lsTrain
 
             ridgeTrain = LeastSquares(self.xPlot, self.yPlot, self.zPlot, degree,trueFunction=self.trueFunction, \
                                       lambdaValue=self.ridgeLambda)
@@ -859,8 +908,10 @@ class Problem:
             self.mseKFStdLs.append(np.std(lsKF.mseSciKit)/np.mean(lsKF.mseSciKit))
             self.mseTrainingKFLs.append(np.mean(lsKF.mseTraining))
             self.r2KFLs.append(np.mean(lsKF.R2SciKit))
-            self.biasRealDataKFLs.append(lsKF.meanMSEsquaredRealData)
+            self.biasRealDataKFLs.append(lsKF.meanMSEsquaredRealData) # CHECK. Shouldnt it be bias?
+            self.biasRealDataKFLs2.append(lsKF.bias2Method2)
             self.varianceRealDataKFLs.append(lsKF.varianceMSERealData)
+            self.varianceRealDataKFLs2.append(lsKF.varianceMethod2)
             self.totalMSErealDataKFLs.append(lsKF.mseTotalRealData)
             self.betasKFLs.append(lsKF.betaList)
 
@@ -876,8 +927,10 @@ class Problem:
             self.mseKFStdRidge.append(np.std(ridgeKF.mseSciKit)/np.mean(ridgeKF.mseSciKit))
             self.mseTrainingKFRidge.append(np.mean(ridgeKF.mseTraining))
             self.r2KFRidge.append(np.mean(ridgeKF.R2SciKit))
-            self.biasRealDataKFRidge.append(ridgeKF.meanMSEsquaredRealData)
+            self.biasRealDataKFRidge.append(ridgeKF.meanMSEsquaredRealData) #check
+            self.biasRealDataKFRidge2.append(ridgeKF.bias2Method2)
             self.varianceRealDataKFRidge.append(ridgeKF.varianceMSERealData)
+            self.varianceRealDataKFRidge2.append(ridgeKF.varianceMethod2)
             self.totalMSErealDataKFRidge.append(ridgeKF.mseTotalRealData)
             self.betasKFRidge.append(ridgeKF.betaList)
 
@@ -970,13 +1023,13 @@ class Problem:
         [], [], [], [], [], [], [], [], [], [], [], [], []
 
         biasKFLs, varianceKFLs, noiseKFLs, totalErrorKFLs, mseKFLs, mseTrainingKFLs, \
-        r2KFLs, mseKFStdLs, biasRealDataKFLs, varianceRealDataKFLs, totalMSErealDataKFLs, betasKFLs, varBetasKFLs= \
-        [], [], [], [], [], [], [], [], [], [], [], [], []
+        r2KFLs, mseKFStdLs, biasRealDataKFLs, varianceRealDataKFLs, totalMSErealDataKFLs, betasKFLs, varBetasKFLs, biasRealDataKFLs2, varianceRealDataKFLs2 = \
+        [], [], [], [], [], [], [], [], [], [], [], [], [], [], []
 
         biasKFRidge, varianceKFRidge, noiseKFRidge, totalErrorKFRidge, mseKFRidge, mseTrainingKFRidge, \
         r2KFRidge, mseKFStdRidge, biasRealDataKFRidge, varianceRealDataKFRidge, totalMSErealDataKFRidge,\
-        betasKFRidge, varBetasKFRidge= \
-        [], [], [], [], [], [], [], [], [], [], [], [], []
+        betasKFRidge, varBetasKFRidge, biasRealDataKFRidge2, varianceRealDataKFRidge2= \
+        [], [], [], [], [], [], [], [], [], [], [], [], [], [], []
 
         biasKFLasso, varianceKFLasso, noiseKFLasso, totalErrorKFLasso, mseKFLasso, mseTrainingKFLasso, \
         r2KFLasso, mseKFStdLasso, biasRealDataKFLasso, varianceRealDataKFLasso, totalMSErealDataKFLasso,\
@@ -1040,7 +1093,9 @@ class Problem:
             mseTrainingKFLs.append(np.mean(lsKF.mseTraining))
             r2KFLs.append(np.mean(lsKF.R2SciKit))
             biasRealDataKFLs.append(lsKF.meanMSEsquaredRealData)
+            biasRealDataKFLs2.append(lsKF.bias2Method2)
             varianceRealDataKFLs.append(lsKF.varianceMSERealData)
+            varianceRealDataKFLs2.append(lsKF.varianceMethod2)
             totalMSErealDataKFLs.append(lsKF.mseTotalRealData)
             betasKFLs.append(lsKF.betaList)
 
@@ -1057,7 +1112,9 @@ class Problem:
             mseTrainingKFRidge.append(np.mean(ridgeKF.mseTraining))
             r2KFRidge.append(np.mean(ridgeKF.R2SciKit))
             biasRealDataKFRidge.append(ridgeKF.meanMSEsquaredRealData)
+            biasRealDataKFRidge2.append(ridgeKF.bias2Method2)
             varianceRealDataKFRidge.append(ridgeKF.varianceMSERealData)
+            varianceRealDataKFRidge2.append(ridgeKF.varianceMethod2)
             totalMSErealDataKFRidge.append(ridgeKF.mseTotalRealData)
             betasKFRidge.append(ridgeKF.betaList)
 
@@ -1145,7 +1202,21 @@ class Problem:
         term4 = -0.2*np.exp(-(9*x-4)**2 - (9*y-7)**2)
         return term1 + term2 + term3 + term4
 
-def createFrankeData(noise=False, plot=False):
+    def varBetaFigures(self, noises=[.0]):
+        for noise in noises:
+            self.mseAllModels(noise, franke=True)
+            self.varBeta()
+
+    def createResidualHistograms(self, noises=[0.], nBins=25,  residualsDegree=1):
+        for noise in noises:
+            self.mseAllModels(noise=noise, franke=True, plotResiduals=True, nBins=nBins, residualsDegree=residualsDegree)
+
+    def bootstrapParameterVariance(self, bootstraps=100, plot=False):
+        self.lsTrain.errorBootstrap(bootstraps=bootstraps, plot=plot)
+
+
+
+def createFrankeData(noise=False, plot=False, observations=20):
     def FrankeFunction(x,y):
         term1 = 0.75*np.exp(-(0.25*(9*x-2)**2) - 0.25*((9*y-2)**2))
         term2 = 0.75*np.exp(-((9*x+1)**2)/49.0 - 0.1*(9*y+1))
@@ -1157,7 +1228,7 @@ def createFrankeData(noise=False, plot=False):
         return z+ noiseSize*np.random.randn(len(z))
     
     np.random.seed(1)
-    observationNumber = 20
+    observationNumber = observations
     x = np.random.rand(observationNumber, 1)
     x = np.sort(x, 0)
     y = np.random.rand(observationNumber, 1)
@@ -1182,4 +1253,6 @@ def createFrankeData(noise=False, plot=False):
         plt.title('Franke-function')
         plt.show()
     return xPlot, yPlot, zPlot
+
+
 
