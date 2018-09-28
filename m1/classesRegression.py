@@ -44,15 +44,26 @@ class LeastSquares:
 
         self.degree = degree
         
-    def createDesignMatrix(self):
-        x, y = self.x, self.y
+    def createDesignMatrix(self, x=None, y=None):
+        
+        if isinstance(x, np.ndarray):
+            print('isinstance activated')
+            None
+            
+        else:
+            x, y = self.x, self.y
+        
+        #x, y = self.x, self.y
         #XHat = np.c_[x, y] 
+        print('\n x \n', x)
         self.XHat = np.c_[x, y] 
         poly = PolynomialFeatures(self.degree)
         self.XHat = poly.fit_transform(self.XHat)
         #self.XHat = poly.fit_transform(XHat)
 
-    def estimate(self):
+    def estimate(self, z=0):
+        if isinstance(z, np.ndarray):
+            self.z = z
         XHat = self.XHat
         XHatTdotXHatShape = np.shape(XHat.T.dot(XHat))
         
@@ -88,30 +99,21 @@ class LeastSquares:
         self.residuals = self.zPredict - self.z
 
         
-    def plot(self, zPredict=0):
-        xPlot, yPlot, zPlot = self.xPlot, self.yPlot, self.zPlot
+    def plot(self, zPredict=0, xTest=None, yTest=None, zTest=None):
+        if len(xTest) < 2:
+            xPlot, yPlot, zPlot = self.xPlot, self.yPlot, self.zPlot
+        else:
+            xPlot, yPlot, zPlot = xTest, yTest, zTest
         try:
             zPredict = self.zPredict
         except:
             None
         #z = self.z
+        print('\n np.shape(zPredict) np.shape(zPlot)\n', np.shape(zPredict), np.shape(zPlot))
         zPredictPlot = (np.reshape(zPredict, np.shape(zPlot))).T
-        #zPredictPlot = zPredictPlot.T
+        
         
         # Plot
-        fig = plt.figure()
-        #fig, (ax,ax2) = plt.subplots(1,2, figsize=(12.5,5)) 
-        ax = fig.gca(projection='3d')
-        surf = ax.plot_surface(xPlot, yPlot, zPredictPlot, cmap=cm.coolwarm,
-                               linewidth=0, antialiased=False) 
-        #ax.set_zlim(-1.50, 25.0)
-        #ax.set_zlim(-0.10, 1.40)
-        ax.zaxis.set_major_locator(LinearLocator(10))
-        ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-        fig.colorbar(surf, shrink=0.5, aspect=5)
-        ax.set_title('Predicted')
-        plt.show()
-        
         fig = plt.figure()
         ax2 = fig.gca(projection='3d')
         surf = ax2.plot_surface(xPlot, yPlot, zPlot, cmap=cm.coolwarm,
@@ -122,7 +124,24 @@ class LeastSquares:
         ax2.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
         fig.colorbar(surf, shrink=0.5, aspect=5)
         ax2.set_title('True')
-        plt.show()        
+        plt.show()   
+
+        fig = plt.figure()
+        #fig, (ax,ax2) = plt.subplots(1,2, figsize=(12.5,5)) 
+        ax = fig.gca(projection='3d')
+        #surf = ax.plot_surface(xPlot, yPlot, (zPredictPlot/zPlot-1)*100, cmap=cm.coolwarm,
+         #                      linewidth=0, antialiased=False) 
+        surf = ax.plot_surface(xPlot, yPlot, zPredictPlot, cmap=cm.coolwarm,
+                               linewidth=0, antialiased=False) 
+        #ax.set_zlim(-1.50, 25.0)
+        #ax.set_zlim(-0.10, 1.40)
+        ax.zaxis.set_major_locator(LinearLocator(10))
+        ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+        fig.colorbar(surf, shrink=0.5, aspect=5)
+        ax.set_title('(Predicted/True-1)*100')
+        plt.show()
+        
+             
         
         
     def calculateErrorScores(self):
@@ -562,18 +581,48 @@ class Problem:
         else:
             self.trueFunction = self.frankeFunction
 
-    def preditionAndPlot(self, xPlotTest, yPlotTest, zPlotTest, model='ridge', degree=5, lambdaValue=0, maxIterations=100000, plotResiduals=False):
+    def preditionAndPlot(self, xPlotTest, yPlotTest, zPlotTest, model='ridge', degree=5, lambdaValue=0, maxIterations=100000, plotResiduals=False, testPercentage=0):
+        xFlat = xPlotTest.rehsape(-1, 1)#np.reshape(xPlotTest, -1, 1)
+        yFlat = yPlotTest.rehsape(-1, 1)#yFlat = #np.reshape(yPlotTest, -1, 1)
+        zFlat = zPlotTest.rehsape(-1, 1)#        zFlat = #np.reshape(zPlotTest, -1, 1)
+        IndexSplit = int(round(len(xFlat)*(1-testPercentage/100.)))
+        
+        xTrain = xFlat[0:IndexSplit]
+        yTrain = yFlat[0:IndexSplit]
+        zTrain = zFlat[0:IndexSplit]
+
+        xTest = xFlat[IndexSplit:]
+        yTest = yFlat[IndexSplit:]
+        zTest = zFlat[IndexSplit:]
+        print('\n len(zTest), len(zTrain), len(zFlat) \n',len(zTest), len(zTrain), len(zFlat) )
+        print('\n len(xTest), len(xTrain), len(xFlat) \n',len(xTest), len(xTrain), len(xFlat) )
+
         if model=='ridge':
             ls = LeastSquares(self.xPlotOrg, self.yPlotOrg, self.zPlotOrg, degree=degree, trueFunction=self.trueFunction,\
                  lambdaValue=lambdaValue)
-            ls.createDesignMatrix()
-            ls.estimate()
-            self.x = np.reshape(xPlotTest, -1, 1) 
-            self.y = np.reshape(yPlotTest, -1, 1)  
+            ls.createDesignMatrix(xTrain, yTrain)
+            print('\n ls design train \n', ls.XHat)
+            ls.estimate(zTrain)
+            #x = np.reshape(xPlotTest, -1, 1) 
+            #y = np.reshape(yPlotTest, -1, 1)  
             #self.z = xPlotTest, yPlotTest, zPlotTest
-            ls.createDesignMatrix()
+            ls.createDesignMatrix(xTest, yTest)
+            print('\n ls design Test \n', ls.XHat)
             ls.predict()
-            ls.plot()
+            xShape  = np.shape(xPlotTest)
+            xShapeX = int(round(xShape[0]*(1-testPercentage/100.)))
+            xShapeY = int(round(xShape[1]*(1-testPercentage/100.)))
+            yShape  = np.shape(yPlotTest)
+            yShapeX = int(round(yShape[0]*(1-testPercentage/100.)))
+            yShapeY = int(round(yShape[1]*(1-testPercentage/100.)))
+            zShape  = np.shape(zPlotTest)
+            zShapeX = int(round(zShape[0]*(1-testPercentage/100.)))
+            zShapeY = int(round(zShape[1]*(1-testPercentage/100.)))
+            
+            zPlotTest = xTest.reshape(xShapeX, xShapeY)#(np.reshape(zPredict, np.shape(zPlot))).T
+            zPlotTest = yTest.reshape(yShapeX, yShapeY)#(np.reshape(zPredict, np.shape(zPlot))).T
+            zPlotTest = zTest.reshape(zShapeX, zShapeY)#(np.reshape(zPredict, np.shape(zPlot))).T
+            ls.plot(xTest=xPlotTest, yTest=yPlotTest, zTest=zPlotTest)
             if plotResiduals:
                 ls.calculateResiduals()
             #fig, ax = plt.subplots()
