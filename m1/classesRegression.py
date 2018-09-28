@@ -533,7 +533,7 @@ class LeastSquares:
         # Bias-variance, true function unknown, METHOD 2 all observations
         mseFromErrorMatrix = np.mean(errorMatrix**2)
         #print('\n mseFromErrorMatrix/self.totalError\n',  mseFromErrorMatrix/self.totalError) # Equals 1
-        print('\n self.zPredict \n', self.zPredict)
+        #print('\n self.zPredict \n', self.zPredict)
         self.varianceMethod2 = np.sum( (self.zPredict - np.mean(self.zPredict))**2 )/len(self.zPredict)#np.var(self.zPredict)#np.var(errorMatrix)
         meanError = np.mean(errorMatrix)
         self.bias2Method2 =  np.sum( (np.reshape(self.zPlot, -1,1) - np.mean(self.zPredict))**2 )/len(self.zPredict)#np.mean((self.zPredict - np.mean(self.zPredict))**2)#meanError**2
@@ -542,7 +542,7 @@ class LeastSquares:
         #print('\n self.mseMethod2SumBiasVariance/self.mseMethod2 \n', self.mseMethod2SumBiasVariance/self.mseMethod2)
         #print('\n errorMatrix \n', errorMatrix, '\n meanError \n', meanError, '\n type(errorMatrix\n',type(errorMatrix))
         #print('\n np.shape(errorMatrix \n ',np.shape(errorMatrix))
-        print('\n self.varianceMethod2, self.bias2Method2\n', self.varianceMethod2, self.bias2Method2)
+        #print('\n self.varianceMethod2, self.bias2Method2\n', self.varianceMethod2, self.bias2Method2)
 
        
     def FrankeFunction(self, x,y):
@@ -562,12 +562,16 @@ class Problem:
         else:
             self.trueFunction = self.frankeFunction
 
-    def preditionAndPlot(self, model='ridge', degree=5, lambdaValue=0, maxIterations=100000, plotResiduals=False):
+    def preditionAndPlot(self, xPlotTest, yPlotTest, zPlotTest, model='ridge', degree=5, lambdaValue=0, maxIterations=100000, plotResiduals=False):
         if model=='ridge':
-            ls = LeastSquares(self.xPlot, self.yPlot, self.zPlot, degree, trueFunction=self.trueFunction,\
+            ls = LeastSquares(self.xPlotOrg, self.yPlotOrg, self.zPlotOrg, degree=degree, trueFunction=self.trueFunction,\
                  lambdaValue=lambdaValue)
             ls.createDesignMatrix()
             ls.estimate()
+            self.x = np.reshape(xPlotTest, -1, 1) 
+            self.y = np.reshape(yPlotTest, -1, 1)  
+            #self.z = xPlotTest, yPlotTest, zPlotTest
+            ls.createDesignMatrix()
             ls.predict()
             ls.plot()
             if plotResiduals:
