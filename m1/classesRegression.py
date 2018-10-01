@@ -743,7 +743,6 @@ class Problem:
                 beta2[i] = np.sqrt(varBetasTrainingTobetasTraining[i][2])
         
         elif model == 'ridge':
-            print('inside ridge')
             varBetasTrainingTobetasTraining = [] 
             for i in range(len(self.varBetasTraining)):
                 varBetasTrainingTobetasTraining.append(self.varBetasTrainingRidge[i]/np.abs(self.betasTrainingRidge[i]))
@@ -860,7 +859,7 @@ class Problem:
                    fontsize = fontSize, ncol=2)
         ax.tick_params(axis='both', which='major', labelsize=fontSize*1.25)
         #plt.tight_layout()
-
+        '''
         fig, ax = plt.subplots(figsize=(8,4))
         total = np.array(self.biasRealDataKF2[:lastDegree])+np.array(self.varianceRealDataKF2[:lastDegree])
         #for r2Method, label in zip( r2Methods, legends): # mseTrainingBS, mseTrainingKF,
@@ -881,7 +880,7 @@ class Problem:
                    fontsize = fontSize, ncol=2)
         ax.tick_params(axis='both', which='major', labelsize=fontSize*1.25)
         #plt.tight_layout()
-        
+        '''
     def biasVariance(self, mses):
         varianceMse = np.var(mses)
         meanMseSquared = (np.mean(mses))**2
@@ -1314,9 +1313,9 @@ class Problem:
         term4 = -0.2*np.exp(-(9*x-4)**2 - (9*y-7)**2)
         return term1 + term2 + term3 + term4
 
-    def varBetaFigures(self, noises=[.0], model='ols'):
+    def varBetaFigures(self, noises=[.0], model='ols', lassoLambda=False, ridgeLambda=0):
         for noise in noises:
-            self.mseAllModels(noise, franke=True)
+            self.mseAllModels(noise, franke=True, ridgeLambda=ridgeLambda)
             self.varBeta(model)
 
     def createResidualHistograms(self, noises=[0.], nBins=25,  residualsDegree=1):
