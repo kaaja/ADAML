@@ -1089,7 +1089,8 @@ class Problem:
         
     def punishmenParameterAnalysis(self, degree=5, numberOfFolds = 10, startLambdaRidge = 0.05, \
                                    startLambdaLasso = 0.000125, numberOfPoints = 6,\
-                                    maxIterations = 100000):
+                                    maxIterations = 100000, adjustmentFactorRidge=1.5, \
+                                    adjustmentFactorLasso=1.5):
 
         bootstraps = 100
 
@@ -1119,8 +1120,8 @@ class Problem:
         #startLambdaLasso = 0.000125
         #numberOfPoints = 6
 
-        ridgeLambdas = np.array([startLambdaRidge*1.5**i for i in range(numberOfPoints)]) #np.arange(0.0025, 0.015+ 0.0025, 0.0025)
-        lassoLambdas = np.array([startLambdaLasso*1.5**i for i in range(numberOfPoints)]) #np.arange(0.0025, 0.015+ 0.0025, 0.0025)
+        ridgeLambdas = np.array([startLambdaRidge*adjustmentFactorRidge**i for i in range(numberOfPoints)]) #np.arange(0.0025, 0.015+ 0.0025, 0.0025)
+        lassoLambdas = np.array([startLambdaLasso*adjustmentFactorLasso**i for i in range(numberOfPoints)]) #np.arange(0.0025, 0.015+ 0.0025, 0.0025)
 
 
         for ridgeLambda, lassoLambda in zip(ridgeLambdas, lassoLambdas):
@@ -1228,53 +1229,64 @@ class Problem:
         lambdaForPlot = [ridgeLambdas, lassoLambdas]
         modelNames = ['Ridge', 'Lasso']
         
-        for method in range(len(lambdaForPlot)):
-        #for trainingMethod, testingMethod, bvModel, label in zip(mseMethods, mseMethodsTesting, biasVariance, legends): # mseTrainingBS, mseTrainingKF,
-            #ax.plot(ridgeLambdas[:lastDegree], trainingMethod[:lastDegree])#, label=label)
-            #ax2.plot(ridgeLambdas, testingMethod)#, label=label)
-            #ax3.plot(degrees[:lastDegree]punishmenParameterAnalysis, bvModel[:lastDegree])
-            fig, (ax,ax2) = plt.subplots(1,2, figsize=(12.5,5))  # 1 row, 2 columns
+        fig, (ax,ax2) = plt.subplots(1,2, figsize=(12.5,5))  # 1 row, 2 columns
+        ax.plot(np.log2(ridgeLambdas), mseKFRidge)
+        ax2.plot(np.log2(lassoLambdas), mseKFLasso)
+
+        ax.set_title(modelNames[0]+'\n Test MSE', fontsize = fontSize*1.5)
+        #ax.set_xlabel(r'$2^\lambda$', fontsize = fontSize*1.25)
+        ax.set_xlabel(r'$\log(\lambda)$', fontsize = fontSize*1.25)
+        ax.set_xticks(np.log2(lambdaForPlot[0]))
+
+        ax2.set_title(modelNames[1]+'\n Test MSE', fontsize = fontSize*1.5)
+        #ax.set_xlabel(r'$2^\lambda$', fontsize = fontSize*1.25)
+        ax2.set_xlabel(r'$\log(\lambda)$', fontsize = fontSize*1.25)
+        ax2.set_xticks(np.log2(lambdaForPlot[1]))
+
+        #for method in range(len(lambdaForPlot)):
+            #fig, (ax,ax2) = plt.subplots(1,2, figsize=(12.5,5))  # 1 row, 2 columns
             #ax.set_xscale('log', basex=2)
             #ax2.set_xscale('log', basex=2)
-
-            ax.plot(np.log2(lambdaForPlot[method]), mseMethodsTesting[method+1])#, label=label)
-            ax2.plot(np.log2(lambdaForPlot[method]), biasVariance[method+1])#, label=label)
+            
+            #ax.plot(np.log2(lambdaForPlot[method]), mseMethodsTesting[method+1])#, label=label)
+            
+            #ax2.plot(np.log2(lambdaForPlot[method]), biasVariance[method+1])#, label=label)
             #ax.semilogx(lambdaForPlot[method], mseMethodsTesting[method+1])#, label=label)
             #ax2.semilogx(lambdaForPlot[method], biasVariance[method+1])#, label=label)
             
             #ax.plot(lambdaForPlot[method], mseMethodsTesting[method+1])#, label=label)
             #ax2.plot(lambdaForPlot[method], biasVariance[method+1])#, label=label)
+        '''    
+        ax.set_title(modelNames[method]+'\n Test MSE', fontsize = fontSize*1.5)
+        #ax.set_xlabel(r'$2^\lambda$', fontsize = fontSize*1.25)
+        ax.set_xlabel(r'$\log(\lambda)$', fontsize = fontSize*1.25)
+        ax.set_xticks(np.log2(lambdaForPlot[method]))
 
-            ax.set_title(modelNames[method]+'\n Test MSE', fontsize = fontSize*1.5)
-            #ax.set_xlabel(r'$2^\lambda$', fontsize = fontSize*1.25)
-            ax.set_xlabel(r'$\log(\lambda)$', fontsize = fontSize*1.25)
-            ax.set_xticks(np.log2(lambdaForPlot[method]))
+        ax2.set_title(modelNames[method]+'\n Variance share MSE', fontsize = fontSize*1.5)
+        #ax2.set_xlabel(r'$2^\lambda$', fontsize = fontSize*1.25)
+        ax2.set_xlabel(r'$\log(\lambda)$', fontsize = fontSize*1.25)
+        ax2.set_xticks(np.log2(lambdaForPlot[method]))
 
-            ax2.set_title(modelNames[method]+'\n Variance share MSE', fontsize = fontSize*1.5)
-            #ax2.set_xlabel(r'$2^\lambda$', fontsize = fontSize*1.25)
-            ax2.set_xlabel(r'$\log(\lambda)$', fontsize = fontSize*1.25)
-            ax2.set_xticks(np.log2(lambdaForPlot[method]))
-
-            ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-            ax2.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+        ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+        ax2.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+        '''    
 
 
-
-            '''
-            box = ax.get_position()
-            ax.set_position([box.x0, box.y0, box.width * 1.0, box.height*.8])
-            ax.legend(legends, loc='center left', bbox_to_anchor=(-0.1, -0.45), \
+        '''
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width * 1.0, box.height*.8])
+        ax.legend(legends, loc='center left', bbox_to_anchor=(-0.1, -0.45), \
                        fontsize = fontSize, ncol=2)
-            ax.tick_params(axis='both', which='major', labelsize=fontSize*1.25)
+        ax.tick_params(axis='both', which='major', labelsize=fontSize*1.25)
 
 
-            box = ax2.get_position()
-            ax2.set_position([box.x0, box.y0, box.width * 1.0, box.height*.8])
-            ax2.legend(legends, loc='center left', bbox_to_anchor=(-0.1, -0.45), \
+        box = ax2.get_position()
+        ax2.set_position([box.x0, box.y0, box.width * 1.0, box.height*.8])
+        ax2.legend(legends, loc='center left', bbox_to_anchor=(-0.1, -0.45), \
                        fontsize = fontSize, ncol=2)
-            ax2.tick_params(axis='both', which='major', labelsize=fontSize*1.25)
-            plt.tight_layout()
-            '''
+        ax2.tick_params(axis='both', which='major', labelsize=fontSize*1.25)
+        plt.tight_layout()
+        '''
     
 
     
