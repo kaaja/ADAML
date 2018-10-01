@@ -726,19 +726,36 @@ class Problem:
             self.totalMSErealDataKF.append(lsKF.mseTotalRealData)
             self.betasKF.append(lsKF.betaList)
             
-    def varBeta(self):
-        varBetasTrainingTobetasTraining = []
-        for i in range(len(self.varBetasTraining)):
-            varBetasTrainingTobetasTraining.append(self.varBetasTraining[i]/np.abs(self.betasTraining[i]))
+    def varBeta(self, model='ols'):     
 
-        beta0 = np.zeros(len(self.varBetasTraining))
-        beta1 = np.zeros(len(self.varBetasTraining))
-        beta2 = np.zeros(len(self.varBetasTraining))
+        if model == 'ols':
+            varBetasTrainingTobetasTraining = []
+            for i in range(len(self.varBetasTraining)):
+                varBetasTrainingTobetasTraining.append(self.varBetasTraining[i]/np.abs(self.betasTraining[i]))
 
-        for i in range(len(self.varBetasTraining)):
-            beta0[i] = np.sqrt(varBetasTrainingTobetasTraining[i][0])
-            beta1[i] = np.sqrt(varBetasTrainingTobetasTraining[i][1])
-            beta2[i] = np.sqrt(varBetasTrainingTobetasTraining[i][2])
+            beta0 = np.zeros(len(self.varBetasTraining))
+            beta1 = np.zeros(len(self.varBetasTraining))
+            beta2 = np.zeros(len(self.varBetasTraining))
+
+            for i in range(len(self.varBetasTraining)):
+                beta0[i] = np.sqrt(varBetasTrainingTobetasTraining[i][0])
+                beta1[i] = np.sqrt(varBetasTrainingTobetasTraining[i][1])
+                beta2[i] = np.sqrt(varBetasTrainingTobetasTraining[i][2])
+        
+        elif model == 'ridge':
+            print('inside ridge')
+            varBetasTrainingTobetasTraining = [] 
+            for i in range(len(self.varBetasTraining)):
+                varBetasTrainingTobetasTraining.append(self.varBetasTrainingRidge[i]/np.abs(self.betasTrainingRidge[i]))
+
+            beta0 = np.zeros(len(self.varBetasTrainingRidge))
+            beta1 = np.zeros(len(self.varBetasTrainingRidge))
+            beta2 = np.zeros(len(self.varBetasTrainingRidge))
+
+            for i in range(len(self.varBetasTrainingRidge)):
+                beta0[i] = np.sqrt(varBetasTrainingTobetasTraining[i][0])
+                beta1[i] = np.sqrt(varBetasTrainingTobetasTraining[i][1])
+                beta2[i] = np.sqrt(varBetasTrainingTobetasTraining[i][2])
 
         #print('\n beta0 \n', beta0, '\n beta1 \n', beta1, '\n beta2 \n', beta2 )
 
@@ -1297,10 +1314,10 @@ class Problem:
         term4 = -0.2*np.exp(-(9*x-4)**2 - (9*y-7)**2)
         return term1 + term2 + term3 + term4
 
-    def varBetaFigures(self, noises=[.0]):
+    def varBetaFigures(self, noises=[.0], model='ols'):
         for noise in noises:
             self.mseAllModels(noise, franke=True)
-            self.varBeta()
+            self.varBeta(model)
 
     def createResidualHistograms(self, noises=[0.], nBins=25,  residualsDegree=1):
         for noise in noises:
