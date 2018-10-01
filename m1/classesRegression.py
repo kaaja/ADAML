@@ -52,7 +52,7 @@ class LeastSquares:
             
         else:
             x, y = self.x, self.y
-        print('len(x) inside Design ', len(x))
+        #print('len(x) inside Design ', len(x))
         #x, y = self.x, self.y
         #XHat = np.c_[x, y] 
         #print('\n x \n', x)
@@ -64,7 +64,7 @@ class LeastSquares:
     def estimate(self, z=0):
         if isinstance(z, np.ndarray):
             self.z = z
-        print('len(self.z)', len(self.z))
+
         XHat = self.XHat
         XHatTdotXHatShape = np.shape(XHat.T.dot(XHat))
         
@@ -153,7 +153,7 @@ class LeastSquares:
         #print('zPredict', zPredict)
         self.mse = mean_squared_error(z, zPredict)
         self.r2 = r2_score(z, zPredict)
-        print('Inside calError self.r2, self.mse ', self.r2, self.mse)
+        #print('Inside calError self.r2, self.mse ', self.r2, self.mse)
         
         #print("Mean squared error: %.4f" % self.mse)
         #print('R2 score: %.4f' % self.r2)
@@ -600,8 +600,8 @@ class Problem:
         xTest = xFlat[IndexSplit:]
         yTest = yFlat[IndexSplit:]
         zTest = zFlat[IndexSplit:]
-        print(len(xTest), len(xTrain), len(yTest), len(yTrain), \
-              len(zTest), np.shape(zTrain))
+        #print(len(xTest), len(xTrain), len(yTest), len(yTrain), \
+         #     len(zTest), np.shape(zTrain))
         #print('\n len(zTest), len(zTrain), len(zFlat) \n',len(zTest), len(zTrain), len(zFlat) )
         #print('\n len(xTest), len(xTrain), len(xFlat) \n',len(xTest), len(xTrain), len(xFlat) )
 
@@ -622,7 +622,7 @@ class Problem:
             ls.calculateErrorScores()
             self.mse = ls.mse
             self.r2 = ls.r2
-            print('In calcPlot mse, r2',self.mse, self.r2) 
+            #print('In calcPlot mse, r2',self.mse, self.r2) 
             '''
             xShape  = np.shape(xPlotTest)
             xShapeX = int(round(xShape[0]*(1-testPercentage/100.)))
@@ -651,12 +651,14 @@ class Problem:
         else:
             lasso=linear_model.Lasso(alpha=lambdaValue, fit_intercept=False, max_iter=maxIterations)
             polyLasso = PolynomialFeatures(degree)
-            XHatLasso = np.c_[np.reshape(self.xPlot, -1, 1), np.reshape(self.yPlot, -1, 1)] 
+            XHatLasso = np.c_[xTrain, yTrain] 
             XHatLasso = polyLasso.fit_transform(XHatLasso)
-            lasso.fit(XHatLasso, np.reshape(self.zPlot, -1, 1))
-            ls = LeastSquares(self.xPlot, self.yPlot, self.zPlot, degree, trueFunction=self.trueFunction,\
-                 lambdaValue=lambdaValue)
+            lasso.fit(XHatLasso, zTrain)
+            XHatLasso = np.c_[xTest, yTest] 
+            XHatLasso = polyLasso.fit_transform(XHatLasso)
             zPredict = lasso.predict(XHatLasso)
+            self.mse = mean_squared_error(zTest, zPredict)
+            self.r2 = r2_score(zTest, zPredict)
             if plot:
                 ls.plot(zPredict)
 
@@ -1223,17 +1225,23 @@ class Problem:
 
         lambdaForPlot = [ridgeLambdas, lassoLambdas]
         modelNames = ['Ridge', 'Lasso']
-
+        
         for method in range(len(lambdaForPlot)):
         #for trainingMethod, testingMethod, bvModel, label in zip(mseMethods, mseMethodsTesting, biasVariance, legends): # mseTrainingBS, mseTrainingKF,
             #ax.plot(ridgeLambdas[:lastDegree], trainingMethod[:lastDegree])#, label=label)
             #ax2.plot(ridgeLambdas, testingMethod)#, label=label)
             #ax3.plot(degrees[:lastDegree], bvModel[:lastDegree])
             fig, (ax,ax2) = plt.subplots(1,2, figsize=(12.5,5))  # 1 row, 2 columns
+            ax.set_xscale('log', basex=2)
+            ax2.set_xscale('log', basex=2)
 
             ax.plot(np.log2(lambdaForPlot[method]), mseMethodsTesting[method+1])#, label=label)
             ax2.plot(np.log2(lambdaForPlot[method]), biasVariance[method+1])#, label=label)
-
+            #ax.semilogx(lambdaForPlot[method], mseMethodsTesting[method+1])#, label=label)
+            #ax2.semilogx(lambdaForPlot[method], biasVariance[method+1])#, label=label)
+            
+            #ax.plot(lambdaForPlot[method], mseMethodsTesting[method+1])#, label=label)
+            #ax2.plot(lambdaForPlot[method], biasVariance[method+1])#, label=label)
 
             ax.set_title(modelNames[method]+'\n Test MSE', fontsize = fontSize*1.5)
             ax.set_xlabel(r'$2^\lambda$', fontsize = fontSize*1.25)
