@@ -38,8 +38,6 @@ class LeastSquares:
         self.xOrg, self.yOrg = xPlot[0], yPlot[:,0]
         self.numberOfObservations = len(self.xOrg)
         self.xPlot, self.yPlot, self.zPlot = xPlot, yPlot, zPlot
-        #self.x, self.y, self.z = xPlot.reshape(-1, 1), yPlot.reshape(-1, 1), zPlot.reshape(-1, 1)
-        #self.x, self.y, self.z = np.ravel(xPlot), np.ravel(yPlot), np.ravel(zPlot)
         self.x, self.y, self.z = np.reshape(xPlot, -1, 1), np.reshape(yPlot, -1, 1), np.reshape(zPlot, -1, 1)
 
         self.degree = degree
@@ -47,19 +45,15 @@ class LeastSquares:
     def createDesignMatrix(self, x=None, y=None):
         
         if isinstance(x, np.ndarray):
-            #print('isinstance activated')
             None
             
         else:
             x, y = self.x, self.y
-        #print('len(x) inside Design ', len(x))
-        #x, y = self.x, self.y
-        #XHat = np.c_[x, y] 
-        #print('\n x \n', x)
+
         self.XHat = np.c_[x, y] 
         poly = PolynomialFeatures(self.degree)
         self.XHat = poly.fit_transform(self.XHat)
-        #self.XHat = poly.fit_transform(XHat)
+
 
     def estimate(self, z=0):
         if isinstance(z, np.ndarray):
@@ -67,22 +61,7 @@ class LeastSquares:
 
         XHat = self.XHat
         XHatTdotXHatShape = np.shape(XHat.T.dot(XHat))
-        
-        # Ridge Inverson
-        #self.betaHat = np.linalg.inv(XHat.T.dot(XHat) + \
-         #                            lambdaValue*np.identity(XHatTdotXHatShape[0])).dot(XHat.T).dot(self.z)
-        
-        # OLS inversion
-        #self.betaHat = np.linalg.inv(XHat.T.dot(XHat)).dot(XHat.T).dot(self.z)
-        
-        # Linear system OLS
-        #self.betaHat = np.linalg.solve(np.dot(XHat.T, XHat), np.dot(XHat.T, self.z))
-        
-        # Linear system, Ridge. NOT WORKING.
-        #self.betaHat = np.linalg.solve(np.dot(XHat.T, XHat) + lambdaValue*np.identity(XHatTdotXHatShape[0]),\
-         #                              np.dot(XHat.T, self.z))
-        
-        
+
         # SVD Ridge
         alphas = np.zeros(1)
         alphas[0] = self.lambdaValue
@@ -90,7 +69,7 @@ class LeastSquares:
         d = s / (s[:, np.newaxis].T ** 2 + alphas[:, np.newaxis])
         self.betaHat = np.dot(d * U.T.dot(self.z), Vt).T
         self.betaHat = np.squeeze(self.betaHat)
-        #print('shape beta ', np.shape(self.betaHat), 'type beta', type(self.betaHat))
+
         
     
     def predict(self):
@@ -109,8 +88,6 @@ class LeastSquares:
             zPredict = self.zPredict
         except:
             None
-        #z = self.z
-        #print('\n np.shape(zPredict) np.shape(zPlot)\n', np.shape(zPredict), np.shape(zPlot))
         zPredictPlot = (np.reshape(zPredict, np.shape(zPlot))).T
         
         
@@ -119,8 +96,6 @@ class LeastSquares:
         ax2 = fig.gca(projection='3d')
         surf = ax2.plot_surface(xPlot, yPlot, zPlot, cmap=cm.coolwarm,
                                linewidth=0, antialiased=False) 
-        #ax.set_zlim(-1.50, 25.0)
-        #ax.set_zlim(-0.10, 1.40)
         ax2.zaxis.set_major_locator(LinearLocator(10))
         ax2.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
         fig.colorbar(surf, shrink=0.5, aspect=5)
@@ -128,14 +103,9 @@ class LeastSquares:
         plt.show()   
 
         fig = plt.figure()
-        #fig, (ax,ax2) = plt.subplots(1,2, figsize=(12.5,5)) 
         ax = fig.gca(projection='3d')
-        #surf = ax.plot_surface(xPlot, yPlot, (zPredictPlot/zPlot-1)*100, cmap=cm.coolwarm,
-         #                      linewidth=0, antialiased=False) 
         surf = ax.plot_surface(xPlot, yPlot, zPredictPlot, cmap=cm.coolwarm,
                                linewidth=0, antialiased=False) 
-        #ax.set_zlim(-1.50, 25.0)
-        #ax.set_zlim(-0.10, 1.40)
         ax.zaxis.set_major_locator(LinearLocator(10))
         ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
         fig.colorbar(surf, shrink=0.5, aspect=5)
@@ -147,16 +117,9 @@ class LeastSquares:
         
     def calculateErrorScores(self):
         from sklearn.metrics import mean_squared_error, r2_score, mean_squared_log_error, mean_absolute_error
-        #print('self.z inside calculateErrorScores', self.z)
         z, zPredict = self.z, self.zPredict
-        #print('shape z, zPredict', np.shape(z), np.shape(zPredict)) 
-        #print('zPredict', zPredict)
         self.mse = mean_squared_error(z, zPredict)
         self.r2 = r2_score(z, zPredict)
-        #print('Inside calError self.r2, self.mse ', self.r2, self.mse)
-        
-        #print("Mean squared error: %.4f" % self.mse)
-        #print('R2 score: %.4f' % self.r2)
         
 
     def calculateVarianceBeta(self, noise=0, plotResiduals=False, nBins=50):
@@ -167,10 +130,8 @@ class LeastSquares:
         # Source Ridge estimator variance: https://arxiv.org/pdf/1509.09169.pdf
         shapeXXT = np.shape(XHat.T.dot(XHat))
 
-        #yFitted = XHat.dot(betaHat)
         yFitted = self.zPredict
         mse = 1/(len(self.x) -1)*np.sum((z - yFitted)**2)
-        #print('mse, self.noise', mse, noise)
         if plotResiduals:
             self.calculateResiduals()
             plt.figure()
@@ -182,7 +143,6 @@ class LeastSquares:
         W = np.linalg.inv(XHat.T.dot(XHat) + self.lambdaValue*np.eye(shapeXXT[0], shapeXXT[1])).dot(XHat.T).dot(XHat) 
         self.varBeta = W.dot(coefficientVariancesSLR).dot(W.T)
         self.varBeta = np.diag(self.varBeta)
-        #self.varBeta = np.diag(coefficientVariancesSLR)
         self.varOLS = np.diag(coefficientVariancesSLR)
         
     def movingAvg(self, array):
@@ -211,8 +171,6 @@ class LeastSquares:
         for runNumber in range(numberOfRuns):
             varianceVector[runNumber] = np.var(betaList[0:runNumber+1])
         return varianceVector
-    
-    
 
     
     def errorBootstrap(self, bootstraps=2, plot=False): 
@@ -224,11 +182,9 @@ class LeastSquares:
         self.R2Training = np.zeros(bootstraps)
         
         self.bootstraps = bootstraps
-        betaList = [] # For variance calculation
-        #VBT = []
+        betaList = [] 
         self.error2 = np.zeros(bootstraps)
-        #averageZ = 0
-        zPredictDict = OrderedDict() # Bias-variance decomposition
+        zPredictDict = OrderedDict() 
         noiseDict = OrderedDict()
         noiseDict2 = OrderedDict()
         totalErrorDict = OrderedDict()
@@ -242,13 +198,10 @@ class LeastSquares:
                 totalErrorDict[i, j] = []
         bias2Matrix = np.zeros((self.numberOfObservations, self.numberOfObservations))
         varianceMatrix = np.zeros_like(bias2Matrix)
-        #varianceMatrix2 = np.zeros_like(bias2Matrix)
         noiseMatrix = np.zeros_like(bias2Matrix)
-        #noiseMatrix2 = np.zeros_like(bias2Matrix)
         totalErrorMatrix = np.zeros_like(bias2Matrix)
         totalErrorMatrixForTesting = np.zeros_like(bias2Matrix)
         
-        #avgYmatrix = np.zeros((self.numberOfObservations, self.numberOfObservations))
         zPredictMeanMatrix = np.zeros((self.numberOfObservations, self.numberOfObservations))
 
         
@@ -260,12 +213,7 @@ class LeastSquares:
                       np.random.randint(0, high=self.numberOfObservations)) \
                      for i in range(self.numberOfObservations*self.numberOfObservations)]
             trainingIndices = np.array(trainingIndices)
-            #print('\n trainingIndices \n', trainingIndices, '\n')
-            '''
-            xTraining1D = self.xPlot[trainingIndices[:,0], trainingIndices[:,1]]
-            yTraining1D = self.yPlot[trainingIndices[:,0], trainingIndices[:,1]]
-            zTraining1D = self.zPlot[trainingIndices[:,0], trainingIndices[:,1]]
-            '''
+
             xTraining1D = self.xPlot[trainingIndices[:,1], trainingIndices[:,0]]
             yTraining1D = self.yPlot[trainingIndices[:,1], trainingIndices[:,0]]
             zTraining1D = self.zPlot[trainingIndices[:,1], trainingIndices[:,0]]
@@ -283,22 +231,13 @@ class LeastSquares:
             testIndexArray = np.zeros((self.numberOfObservations, self.numberOfObservations))
             testIndexArray[trainingIndices[:,0], trainingIndices[:,1]] = 1
             testIndices = np.argwhere(testIndexArray == 0)
-            #print('\n len(testIndices) \n', len(testIndices), '\n len(trainingIndices) \n', len(trainingIndices))
-            '''
-            xTest1D = self.xPlot[testIndices[:,0], testIndices[:,1]]
-            yTest1D = self.yPlot[testIndices[:,0], testIndices[:,1]]
-            zTest1D = self.zPlot[testIndices[:,0], testIndices[:,1]]
-            '''
             
             xTest1D = self.xPlot[testIndices[:,1], testIndices[:,0]]
             yTest1D = self.yPlot[testIndices[:,1], testIndices[:,0]]
             zTest1D = self.zPlot[testIndices[:,1], testIndices[:,0]]
             
-            #print('\n xTest1D \n', xTest1D, '\n')
-            
             self.x, self.y, self.z = xTest1D, yTest1D, zTest1D
             self.createDesignMatrix()
-            #self.estimate()
             self.predict()           # --> zPredict
             
             self.mseBootstrap[iteration] = mean_squared_error(self.z, self.zPredict)
@@ -308,7 +247,6 @@ class LeastSquares:
             for coordinate, index in zip(testIndicesTuple, range(len(self.zPredict))):
                 zPredictDict[coordinate].append(self.zPredict[index])
                 noiseDict[coordinate].append((self.z[index] - self.trueFunction(self.x[index], self.y[index]))**2)
-                #noiseDict2[coordinate].append(self.z[index] - self.trueFunction(self.x[index], self.y[index]))# Always the same
                 totalErrorDict[coordinate].append((self.z[index] - self.zPredict[index])**2)
                 zPredictMatrix[coordinate[0]][coordinate[1]] = self.zPredict[index]
             models.append(zPredictMatrix)
@@ -317,54 +255,31 @@ class LeastSquares:
             for i in range(len(self.x)):
                 self.error2[iteration] += (self.z[i] - self.zPredict[i])**2
             
-
-        
-        #zForTest = np.ravel(self.zPlot)
         xForFunction, yForFunction = np.ravel(self.xPlot), np.ravel(self.yPlot)
         fValues = self.trueFunction(xForFunction, yForFunction)
         for key, index in zip(zPredictDict, range(len(zPredictDict))):
             zPredictMean = np.nanmean(zPredictDict[key])
             varianceMatrix[key[0], key[1]] = np.nanvar(zPredictDict[key])
-            #varianceMatrix2[key[0], key[1]] = np.nanmean((zPredictDict[key] - zPredictMean)**2)
-            #bias2Matrix[key[0], key[1]] = (zPredictMean - self.trueFunction(self.xOrg[key[0]], self.yOrg[key[1]]))**2
-            #bias2Matrix[key[0], key[1]] = (zPredictMean - zForTest[index])**2
             bias2Matrix[key[0], key[1]] = (zPredictMean - fValues[index])**2
             noiseMatrix[key[0], key[1]] = np.nanmean(noiseDict[key])
-            #noiseMatrix2[key[0], key[1]] = np.nanvar(noiseDict2[key])
             totalErrorMatrix[key[0], key[1]] = np.nanmean(totalErrorDict[key])
             totalErrorMatrixForTesting[key[0], key[1]] = varianceMatrix[key[0], key[1]] + bias2Matrix[key[0], key[1]]\
                                                         + noiseMatrix[key[0], key[1]]
                     
             zPredictMeanMatrix[key[0], key[1]] = np.nanmean(zPredictDict[key])
 
-            
-
-        #print('\n varianceMatrix/varianceMatrix2 \n', np.divide(varianceMatrix,varianceMatrix2), '\n ') 
-        # Result: they equal
-        
-        #print('\n totalErrorMatrix/totalErrorMatrixForTesting \n', np.divide(totalErrorMatrix,totalErrorMatrixForTesting), '\n ') 
-        # Result: different
-        
-        #print('\n noiseMatrix/noiseMatrix2 \n', np.divide(noiseMatrix,noiseMatrix2), '\n ') 
-        # Result: Numbers ar 10**31
-        
-        #print('\n noiseMatrix2 \n',noiseMatrix2, '\n ') 
-        # Very small elements, 10**-31 --> Reason: The difference between the real function and the data always the same
+         
         
         # bias-variance over all observations
         self.bias2 = np.nanmean(np.reshape(bias2Matrix, -1, 1))
         self.variance = np.nanmean(np.reshape(varianceMatrix, -1, 1))
-        #self.variance2 = np.nanmean(np.reshape(varianceMatrix2, -1, 1))
+
         self.noise = np.nanmean(np.reshape(noiseMatrix, -1, 1))
         self.totalError = np.nanmean(np.reshape(totalErrorMatrix, -1, 1))
         self.totalErrorForTesting = np.nanmean(np.reshape(totalErrorMatrixForTesting, -1, 1))
-        #print('\n bias2, variance, noise, sum(bias2, variance, noise), totalError', 
-         #     self.bias2, self.variance, self.noise, self.bias2+ self.variance+self.noise, self.totalError) 
-        
-        #from numpy.linalg import norm
+
         variancePython = 0
         for prediction in models:
-            #print('prediction ', prediction)
             for row in range(self.numberOfObservations):
                 for col in range(self.numberOfObservations):
                     if not np.isnan(prediction[row][col]):
@@ -373,7 +288,6 @@ class LeastSquares:
                              prediction[row][col]) '''
                         variancePython += (zPredictMeanMatrix[row][col] - prediction[row][col])**2
         variancePython = np.sqrt(variancePython)
-        #print('\n fValues.size ', fValues.size, 'self.bootstraps ', self.bootstraps)
         variancePython /= fValues.size * self.bootstraps
         self.variancePython = variancePython
         
@@ -382,24 +296,20 @@ class LeastSquares:
         bias_2 /= fValues.size #example python
         self.biasPython = bias_2
         
-        #betaList = np.array(betaList)
         self.error2 = np.sum(self.error2)
         self.mseBootStrapMA = self.movingAvg(self.mseBootstrap)
         self.R2BootstrapMA = self.movingAvg(self.R2Bootstrap)
         self.betaRunning = self.movingAvg(betaList)
         self.varianceBetaBootstrap =  self.runningVariance(betaList)
         self.varMSE = self.runningVarianceVector(self.mseBootstrap)
-        #self.VBT = np.array(VBT)
-        #self.totalVBT = self.VBT[:,-1]
+
         
         # Bias-variance for cases when true function unknown
         self.varianceMSERealData = np.var(self.mseBootstrap)
         self.meanMSEsquaredRealData = (np.mean(self.mseBootstrap))**2
         self.mseTotalRealData = norm(self.mseBootstrap)
         self.mseTotalRealData = self.mseTotalRealData**2/self.bootstraps
-        '''
-        print('\n var+bias \n', self.varianceMSERealData + self.meanMSEsquaredRealData, \
-             '\n mseTotal \n', self.mseTotalRealData )'''
+
         
         
         if plot:
@@ -429,17 +339,8 @@ class LeastSquares:
             ax3.set_xlabel('Number of bootsraps')
             ax3.set_ylabel(r'$Sd(\beta)$')
             
-            '''
-            fig5, ax5 = plt.subplots()
-            ax5.plot(np.arange(1,len(self.R2BootstrapMA )+1),  self.betaRunning)
-            ax5.set_title('Bootstrap \n Beta')
-            ax5.set_xlabel('Number of bootsraps')
-            ax5.set_ylabel('Beta')
-            '''
-            # HERE: 1) After reversal of index numbers, total error in bootstrap no longer sum of bias and viarnace
-            # when zero noise, \
-            #2) maybe possible use method as in pytjhon nb example. Just take average each
-            # element.., 
+
+
             
     def kFold(self, numberOfFolds=3, shuffle=False):
         self.betaList = [] # For variance calculation
@@ -499,14 +400,11 @@ class LeastSquares:
             indices_rows = indices.view([('', indices.dtype)] * indices.shape[1])
             testIndices_rows = testIndices.view([('', testIndices.dtype)] * testIndices.shape[1])
             trainingIndices = np.setdiff1d(indices_rows, testIndices_rows).view(indices.dtype).reshape(-1, indices.shape[1])          
-            #print('\n trainingIndices \n',trainingIndices)
-            #print('\n testIndices \n',testIndices)
             xTraining1D = self.xPlot[trainingIndices[:,1], trainingIndices[:,0]]
             yTraining1D = self.yPlot[trainingIndices[:,1], trainingIndices[:,0]]
             zTraining1D = self.zPlot[trainingIndices[:,1], trainingIndices[:,0]]
 
             self.x, self.y, self.z = xTraining1D, yTraining1D, zTraining1D      
-            #print('\n self.x \n', self.x)
             
             self.createDesignMatrix() # --> XHat
             self.estimate()           # --> betaHat
@@ -528,7 +426,6 @@ class LeastSquares:
                 totalErrorDict[coordinate].append((self.z[index] - self.zPredict[index])**2)
                 errorMatrix[coordinate] = self.z[index] - self.zPredict[index]
 
-        #print('\n zPredictDict inside ', self.zPredictDict)
         xForFunction, yForFunction = np.ravel(self.xPlot), np.ravel(self.yPlot)
         fValues = self.trueFunction(xForFunction, yForFunction)
         for key, index in zip(self.zPredictDict, range(len(self.zPredictDict))):
@@ -546,7 +443,6 @@ class LeastSquares:
         self.noise = np.nanmean(np.reshape(noiseMatrix, -1, 1))
         self.totalError = np.nanmean(np.reshape(totalErrorMatrix, -1, 1))
         self.totalErrorForTesting = np.nanmean(np.reshape(totalErrorMatrixForTesting, -1, 1))
-        #print('difference reshape', self.totalError/np.nanmean(totalErrorMatrix))
         
         # Bias-variance for cases when true function unknown, METHOD 1 (Baed on MSE's only)
         self.varianceMSERealData = np.var(self.mseSciKit)
@@ -558,17 +454,11 @@ class LeastSquares:
 
         # Bias-variance, true function unknown, METHOD 2 all observations
         mseFromErrorMatrix = np.mean(errorMatrix**2)
-        #print('\n mseFromErrorMatrix/self.totalError\n',  mseFromErrorMatrix/self.totalError) # Equals 1
-        #print('\n self.zPredict \n', self.zPredict)
-        self.varianceMethod2 = np.sum( (self.zPredict - np.mean(self.zPredict))**2 )/len(self.zPredict)#np.var(self.zPredict)#np.var(errorMatrix)
+        self.varianceMethod2 = np.sum( (self.zPredict - np.mean(self.zPredict))**2 )/len(self.zPredict)
         meanError = np.mean(errorMatrix)
-        self.bias2Method2 =  np.sum( (np.reshape(self.zPlot, -1,1) - np.mean(self.zPredict))**2 )/len(self.zPredict)#np.mean((self.zPredict - np.mean(self.zPredict))**2)#meanError**2
+        self.bias2Method2 =  np.sum( (np.reshape(self.zPlot, -1,1) - np.mean(self.zPredict))**2 )/len(self.zPredict) 
         self.mseMethod2 = np.mean(errorMatrix**2)
         self.mseMethod2SumBiasVariance = self.varianceMethod2 + self.bias2Method2
-        #print('\n self.mseMethod2SumBiasVariance/self.mseMethod2 \n', self.mseMethod2SumBiasVariance/self.mseMethod2)
-        #print('\n errorMatrix \n', errorMatrix, '\n meanError \n', meanError, '\n type(errorMatrix\n',type(errorMatrix))
-        #print('\n np.shape(errorMatrix \n ',np.shape(errorMatrix))
-        #print('\n self.varianceMethod2, self.bias2Method2\n', self.varianceMethod2, self.bias2Method2)
 
        
     def FrankeFunction(self, x,y):
@@ -590,9 +480,9 @@ class Problem:
             self.trueFunction = self.frankeFunction
 
     def preditionAndPlot(self, xPlotTest, yPlotTest, zPlotTest, model='ridge', degree=5, lambdaValue=0, maxIterations=100000, plotResiduals=False, testPercentage=0, plot=False):
-        xFlat = np.reshape(xPlotTest, -1, 1)#np.reshape(xPlotTest, -1, 1)
-        yFlat = np.reshape(yPlotTest, -1, 1)#yFlat = #np.reshape(yPlotTest, -1, 1)
-        zFlat = np.reshape(zPlotTest, -1, 1)#        zFlat = #np.reshape(zPlotTest, -1, 1)
+        xFlat = np.reshape(xPlotTest, -1, 1)
+        yFlat = np.reshape(yPlotTest, -1, 1)
+        zFlat = np.reshape(zPlotTest, -1, 1)
         IndexSplit = int(round(len(xFlat)*(1-testPercentage/100.)))
         
         xTrain = xFlat[0:IndexSplit]
@@ -602,53 +492,25 @@ class Problem:
         xTest = xFlat[IndexSplit:]
         yTest = yFlat[IndexSplit:]
         zTest = zFlat[IndexSplit:]
-        #print(len(xTest), len(xTrain), len(yTest), len(yTrain), \
-         #     len(zTest), np.shape(zTrain))
-        #print('\n len(zTest), len(zTrain), len(zFlat) \n',len(zTest), len(zTrain), len(zFlat) )
-        #print('\n len(xTest), len(xTrain), len(xFlat) \n',len(xTest), len(xTrain), len(xFlat) )
+
 
         if model=='ridge':
             ls = LeastSquares(self.xPlotOrg, self.yPlotOrg, self.zPlotOrg, degree=degree, trueFunction=self.trueFunction,\
                  lambdaValue=lambdaValue)
             ls.createDesignMatrix(xTrain, yTrain)
-            #print('\n ls design train \n', ls.XHat)
+
             ls.estimate(zTrain)
-            #x = np.reshape(xPlotTest, -1, 1) 
-            #y = np.reshape(yPlotTest, -1, 1)  
-            #self.z = xPlotTest, yPlotTest, zPlotTest
+
             ls.createDesignMatrix(xTest, yTest)
-            #print('\n ls design Test \n', ls.XHat)
+
             ls.predict()
             ls.z = zTest
-            #print('zTest before calculateErrorScores ', zTest)
+
             ls.calculateErrorScores()
             self.mse = ls.mse
             self.r2 = ls.r2
-            #print('In calcPlot mse, r2',self.mse, self.r2) 
-            '''
-            xShape  = np.shape(xPlotTest)
-            xShapeX = int(round(xShape[0]*(1-testPercentage/100.)))
-            xShapeY = int(round(xShape[1]*(1-testPercentage/100.)))
-            yShape  = np.shape(yPlotTest)
-            yShapeX = int(round(yShape[0]*(1-testPercentage/100.)))
-            yShapeY = int(round(yShape[1]*(1-testPercentage/100.)))
-            zShape  = np.shape(zPlotTest)
-            zShapeX = int(round(zShape[0]*(1-testPercentage/100.)))
-            zShapeY = int(round(zShape[1]*(1-testPercentage/100.)))
+
             
-            zPlotTest = xTest.reshape(xShapeX, xShapeY)#(np.reshape(zPredict, np.shape(zPlot))).T
-            zPlotTest = yTest.reshape(yShapeX, yShapeY)#(np.reshape(zPredict, np.shape(zPlot))).T
-            zPlotTest = zTest.reshape(zShapeX, zShapeY)#(np.reshape(zPredict, np.shape(zPlot))).T
-            if plot:            
-                ls.plot(xTest=xPlotTest, yTest=yPlotTest, zTest=zPlotTest)
-            if plotResiduals:
-                ls.calculateResiduals()
-            #fig, ax = plt.subplots()
-            #ax.plot(ls.residuals)
-                plt.figure()
-                n, bins, patches = plt.hist(ls.residuals, 50, density=True, \
-                facecolor='green', alpha=0.75)
-            '''
             
         else:
             lasso=linear_model.Lasso(alpha=lambdaValue, fit_intercept=False, max_iter=maxIterations)
@@ -756,7 +618,6 @@ class Problem:
                 beta1[i] = np.sqrt(varBetasTrainingTobetasTraining[i][1])
                 beta2[i] = np.sqrt(varBetasTrainingTobetasTraining[i][2])
 
-        #print('\n beta0 \n', beta0, '\n beta1 \n', beta1, '\n beta2 \n', beta2 )
 
         variableNames = [r'$\beta_0$', r'$\beta_1$', r'$\beta_2$' ]
         fig2,ax2 = plt.subplots(figsize=(8,4))
@@ -769,8 +630,7 @@ class Problem:
         rects4 = ax2.bar(ind+3*width, np.asarray([beta0[3], beta1[3], beta2[3]]), width, color='b')
         rects5 = ax2.bar(ind+4*width, np.asarray([beta0[4], beta1[4], beta2[4]]), width, color='pink')
 
-        #ax2.set_xlabel(r'$$')
-        #ax2.set_ylabel(r"$C_d$")
+
         fontSize = 20
         ax2.set_title(r'$Sd(\hat{\beta})/\hat{\beta},\;$ Noise term: %.2f' %self.noise)
         ax2.set_xticks((ind + width)*1.2 )#/ 2)
@@ -780,8 +640,7 @@ class Problem:
         ax2.set_position([box.x0, box.y0, box.width * 0.8, box.height])
         ax2.legend(legends, loc='center left', bbox_to_anchor=(1, 0.5)\
                    , fontsize = fontSize)
-        #ax2.set_title(r'$Var(\hat{\beta}),\;$ Noise term: %.2f' %self.noise)
-        #ax2.set_ylim(.08, .11)
+
 
         
     def mseFigures(self, lastDegree=5):
@@ -794,15 +653,10 @@ class Problem:
         xTicks = np.arange(1,self.maxDegree+1, 1)
 
 
-        for mseMethod, r2Method, label in zip(mseMethods, r2Methods, legends): # mseTrainingBS, mseTrainingKF,
+        for mseMethod, r2Method, label in zip(mseMethods, r2Methods, legends): # 
             ax.plot(self.degrees[:lastDegree], mseMethod[:lastDegree])#, label=label)
             ax2.plot(self.degrees[:lastDegree], r2Method[:lastDegree])#, label=label)
         ax2.plot(self.degrees[:lastDegree], np.ones(len(self.degrees[:lastDegree])), 'k')
-
-        #ax2.plot(degrees[:lastDegree], np.array(biasRealDataKF[:lastDegree])/np.array(totalMSErealDataKF[:lastDegree]))
-        #ax2.plot(degrees[:lastDegree], np.array(varianceRealDataKF[:lastDegree])/np.array(totalMSErealDataKF[:lastDegree]))
-        #ax2.plot(degrees[:lastDegree], np.array(biasRealDataKF[:lastDegree]))
-        #ax2.plot(degrees[:lastDegree], np.array(varianceRealDataKF[:lastDegree]))
 
 
         ax.set_title('Average MSE', fontsize = fontSize*1.5)
@@ -829,7 +683,6 @@ class Problem:
         ax2.legend(legendsR2, loc='center left', bbox_to_anchor=(0.2, -0.55), \
                    fontsize = fontSize, ncol=2)
         ax2.tick_params(axis='both', which='major', labelsize=fontSize*1.25)
-        #seaborn.set_context("notebook", font_scale=1.5, rc={"lines.linewidth": 4.5})
         plt.tight_layout()
 
         legends = ['K-fold', 'Training'] #, 'Bootstrap MSE', 'K-fold MSE'
@@ -841,12 +694,10 @@ class Problem:
         xTicks = np.arange(1,self.maxDegree+1, 1)
 
         fig, ax = plt.subplots(figsize=(8,4))
-        #for r2Method, label in zip( r2Methods, legends): # mseTrainingBS, mseTrainingKF,
-         #   ax.plot(degrees[:lastDegree], r2Method[:lastDegree])#, label=label)
+
         ax.plot(self.degrees[:lastDegree], np.array(self.biasRealDataKF[:lastDegree])/np.array(self.totalMSErealDataKF[:lastDegree]))
         ax.plot(self.degrees[:lastDegree], np.array(self.varianceRealDataKF[:lastDegree])/np.array(self.totalMSErealDataKF[:lastDegree]))
-        #ax.plot(degrees[:lastDegree], np.array(biasRealDataKF[:lastDegree]))
-        #ax.plot(degrees[:lastDegree], np.array(varianceRealDataKF[:lastDegree]))
+
 
         ax.set_title('Bias-variance decomposition \n K-fold', fontsize = fontSize*1.5)
         ax.set_xlabel('Degrees of freedom', fontsize = fontSize*1.25)
@@ -858,29 +709,7 @@ class Problem:
         ax.legend(legendsAx2, loc='center left', bbox_to_anchor=(0.2, -0.55), \
                    fontsize = fontSize, ncol=2)
         ax.tick_params(axis='both', which='major', labelsize=fontSize*1.25)
-        #plt.tight_layout()
-        '''
-        fig, ax = plt.subplots(figsize=(8,4))
-        total = np.array(self.biasRealDataKF2[:lastDegree])+np.array(self.varianceRealDataKF2[:lastDegree])
-        #for r2Method, label in zip( r2Methods, legends): # mseTrainingBS, mseTrainingKF,
-         #   ax.plot(degrees[:lastDegree], r2Method[:lastDegree])#, label=label)
-        ax.plot(self.degrees[:lastDegree], np.array(self.biasRealDataKF2[:lastDegree])/total[:lastDegree])
-        ax.plot(self.degrees[:lastDegree], np.array(self.varianceRealDataKF2[:lastDegree])/total[:lastDegree])
-        #ax.plot(degrees[:lastDegree], np.array(biasRealDataKF[:lastDegree]))
-        #ax.plot(degrees[:lastDegree], np.array(varianceRealDataKF[:lastDegree]))
-
-        ax.set_title('Bias-variance decomposition \n K-fold', fontsize = fontSize*1.5)
-        ax.set_xlabel('Degrees of freedom', fontsize = fontSize*1.25)
-        ax.set_ylabel('Share of total MSE', fontsize = fontSize*1.25)
-        ax.set_xticks(xTicks)
-        legendsAx2 = [r'$Bias^2$', 'Variance', '1']
-        box = ax.get_position()
-        ax.set_position([box.x0, box.y0, box.width * 1.0, box.height*.8])
-        ax.legend(legendsAx2, loc='center left', bbox_to_anchor=(0.2, -0.55), \
-                   fontsize = fontSize, ncol=2)
-        ax.tick_params(axis='both', which='major', labelsize=fontSize*1.25)
-        #plt.tight_layout()
-        '''
+        
     def biasVariance(self, mses):
         varianceMse = np.var(mses)
         meanMseSquared = (np.mean(mses))**2
@@ -888,16 +717,7 @@ class Problem:
         return varianceMse, meanMseSquared, mseTotal
         
     def mseAllModels(self, noise=None, franke=False, maxDegree=5, numberOfFolds = 10, ridgeLambda = 1, lassoLambda = .001, maxIterations=10000, plotResiduals=False, nBins=50, residualsDegree=1):
-        '''
-        np.random.seed(1)
-        observationNumber = 20
-        x = np.random.rand(observationNumber, 1)
-        x = np.sort(x, 0)
-        y = np.random.rand(observationNumber, 1)
-        y = np.sort(y, 0)
-        xPlot, yPlot = np.meshgrid(x,y)
-        zPlot = FrankeFunction(xPlot, yPlot)
-        '''
+        
         self.ridgeLambda = ridgeLambda
         self.lassoLambda = lassoLambda
         self.noise = noise
@@ -1029,20 +849,14 @@ class Problem:
             lassoKF = linear_model.Lasso(alpha=lassoLambda, fit_intercept=False, max_iter=maxIterations)
             lasso_scores = -cross_val_score(lassoKF, XHatLasso, np.reshape(self.zPlot, -1, 1),
                                      scoring="neg_mean_squared_error", cv=numberOfFolds)  
-            #varBetasKFRidge.append(ridgeKF.varBeta)
-            #biasKFRidge.append(ridgeKF.bias2)
-            #varianceKFRidge.append(ridgeKF.variance)
-            #noiseKFRidge.append(ridgeKF.noise)
-            #totalErrorKFRidge.append(ridgeKF.totalError)
+           
             self.mseKFLasso.append(np.mean(lasso_scores))
-            #mseKFStdRidge.append(np.std(ridgeKF.mseSciKit)/np.mean(ridgeKF.mseSciKit))
-            #mseTrainingKFRidge.append(np.mean(ridgeKF.mseTraining))
-            #r2KFRidge.append(np.mean(ridgeKF.R2SciKit))
+
             varianceMseLasso, meanMseSquaredLasso, mseTotalLasso = self.biasVariance(lasso_scores)
             self.biasRealDataKFLasso.append(meanMseSquaredLasso)
             self.varianceRealDataKFLasso.append(varianceMseLasso)
             self.totalMSErealDataKFLasso.append(mseTotalLasso)
-            #betasKFRidge.append(ridgeKF.betaList)
+
 
     def mseAllModelsPlot(self, lastDegree=5):
         # Plotting
@@ -1132,9 +946,7 @@ class Problem:
         R2trainingRidge, mseTrainingRidge, varBetasTrainingRidge, betasTrainingRidge= [], [], [], []
         R2trainingLasso, mseTrainingLasso, varBetasTrainingLasso, betasTrainingLasso= [], [], [], []
 
-        #startLambdaRidge = 0.05
-        #startLambdaLasso = 0.000125
-        #numberOfPoints = 6
+
 
         ridgeLambdas = np.array([startLambdaRidge*adjustmentFactorRidge**i for i in range(numberOfPoints)]) #np.arange(0.0025, 0.015+ 0.0025, 0.0025)
         lassoLambdas = np.array([startLambdaLasso*adjustmentFactorLasso**i for i in range(numberOfPoints)]) #np.arange(0.0025, 0.015+ 0.0025, 0.0025)
@@ -1214,20 +1026,14 @@ class Problem:
             lassoKF = linear_model.Lasso(alpha=lassoLambda, fit_intercept=False, max_iter=maxIterations)
             lasso_scores = -cross_val_score(lassoKF, XHatLasso, np.reshape(self.zPlot, -1, 1),
                                      scoring="neg_mean_squared_error", cv=numberOfFolds)  
-            #varBetasKFRidge.append(ridgeKF.varBeta)
-            #biasKFRidge.append(ridgeKF.bias2)
-            #varianceKFRidge.append(ridgeKF.variance)
-            #noiseKFRidge.append(ridgeKF.noise)
-            #totalErrorKFRidge.append(ridgeKF.totalError)
+
             mseKFLasso.append(np.mean(lasso_scores))
-            #mseKFStdRidge.append(np.std(ridgeKF.mseSciKit)/np.mean(ridgeKF.mseSciKit))
-            #mseTrainingKFRidge.append(np.mean(ridgeKF.mseTraining))
-            #r2KFRidge.append(np.mean(ridgeKF.R2SciKit))
+
             varianceMseLasso, meanMseSquaredLasso, mseTotalLasso = self.biasVariance(lasso_scores)
             biasRealDataKFLasso.append(meanMseSquaredLasso)
             varianceRealDataKFLasso.append(varianceMseLasso)
             totalMSErealDataKFLasso.append(mseTotalLasso)
-            #betasKFRidge.append(ridgeKF.betaList)
+
             
         # Plotting
         fontSize  = 16
@@ -1250,62 +1056,14 @@ class Problem:
         ax2.plot(np.log2(lassoLambdas), mseKFLasso)
 
         ax.set_title(modelNames[0]+'\n Test MSE', fontsize = fontSize*1.5)
-        #ax.set_xlabel(r'$2^\lambda$', fontsize = fontSize*1.25)
         ax.set_xlabel(r'$\log(\lambda)$', fontsize = fontSize*1.25)
         ax.set_xticks(np.log2(lambdaForPlot[0]))
 
         ax2.set_title(modelNames[1]+'\n Test MSE', fontsize = fontSize*1.5)
-        #ax.set_xlabel(r'$2^\lambda$', fontsize = fontSize*1.25)
         ax2.set_xlabel(r'$\log(\lambda)$', fontsize = fontSize*1.25)
         ax2.set_xticks(np.log2(lambdaForPlot[1]))
 
-        #for method in range(len(lambdaForPlot)):
-            #fig, (ax,ax2) = plt.subplots(1,2, figsize=(12.5,5))  # 1 row, 2 columns
-            #ax.set_xscale('log', basex=2)
-            #ax2.set_xscale('log', basex=2)
-            
-            #ax.plot(np.log2(lambdaForPlot[method]), mseMethodsTesting[method+1])#, label=label)
-            
-            #ax2.plot(np.log2(lambdaForPlot[method]), biasVariance[method+1])#, label=label)
-            #ax.semilogx(lambdaForPlot[method], mseMethodsTesting[method+1])#, label=label)
-            #ax2.semilogx(lambdaForPlot[method], biasVariance[method+1])#, label=label)
-            
-            #ax.plot(lambdaForPlot[method], mseMethodsTesting[method+1])#, label=label)
-            #ax2.plot(lambdaForPlot[method], biasVariance[method+1])#, label=label)
-        '''    
-        ax.set_title(modelNames[method]+'\n Test MSE', fontsize = fontSize*1.5)
-        #ax.set_xlabel(r'$2^\lambda$', fontsize = fontSize*1.25)
-        ax.set_xlabel(r'$\log(\lambda)$', fontsize = fontSize*1.25)
-        ax.set_xticks(np.log2(lambdaForPlot[method]))
-
-        ax2.set_title(modelNames[method]+'\n Variance share MSE', fontsize = fontSize*1.5)
-        #ax2.set_xlabel(r'$2^\lambda$', fontsize = fontSize*1.25)
-        ax2.set_xlabel(r'$\log(\lambda)$', fontsize = fontSize*1.25)
-        ax2.set_xticks(np.log2(lambdaForPlot[method]))
-
-        ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-        ax2.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-        '''    
-
-
-        '''
-        box = ax.get_position()
-        ax.set_position([box.x0, box.y0, box.width * 1.0, box.height*.8])
-        ax.legend(legends, loc='center left', bbox_to_anchor=(-0.1, -0.45), \
-                       fontsize = fontSize, ncol=2)
-        ax.tick_params(axis='both', which='major', labelsize=fontSize*1.25)
-
-
-        box = ax2.get_position()
-        ax2.set_position([box.x0, box.y0, box.width * 1.0, box.height*.8])
-        ax2.legend(legends, loc='center left', bbox_to_anchor=(-0.1, -0.45), \
-                       fontsize = fontSize, ncol=2)
-        ax2.tick_params(axis='both', which='major', labelsize=fontSize*1.25)
-        plt.tight_layout()
-        '''
-    
-
-    
+ 
     def FrankeFunction(self, x,y):
         term1 = 0.75*np.exp(-(0.25*(9*x-2)**2) - 0.25*((9*y-2)**2))
         term2 = 0.75*np.exp(-((9*x+1)**2)/49.0 - 0.1*(9*y+1))
