@@ -47,15 +47,15 @@ class LeastSquares:
     def createDesignMatrix(self, x=None, y=None):
         
         if isinstance(x, np.ndarray):
-            print('isinstance activated')
+            #print('isinstance activated')
             None
             
         else:
             x, y = self.x, self.y
-        
+        print('len(x) inside Design ', len(x))
         #x, y = self.x, self.y
         #XHat = np.c_[x, y] 
-        print('\n x \n', x)
+        #print('\n x \n', x)
         self.XHat = np.c_[x, y] 
         poly = PolynomialFeatures(self.degree)
         self.XHat = poly.fit_transform(self.XHat)
@@ -64,6 +64,7 @@ class LeastSquares:
     def estimate(self, z=0):
         if isinstance(z, np.ndarray):
             self.z = z
+        print('len(self.z)', len(self.z))
         XHat = self.XHat
         XHatTdotXHatShape = np.shape(XHat.T.dot(XHat))
         
@@ -109,7 +110,7 @@ class LeastSquares:
         except:
             None
         #z = self.z
-        print('\n np.shape(zPredict) np.shape(zPlot)\n', np.shape(zPredict), np.shape(zPlot))
+        #print('\n np.shape(zPredict) np.shape(zPlot)\n', np.shape(zPredict), np.shape(zPlot))
         zPredictPlot = (np.reshape(zPredict, np.shape(zPlot))).T
         
         
@@ -146,9 +147,13 @@ class LeastSquares:
         
     def calculateErrorScores(self):
         from sklearn.metrics import mean_squared_error, r2_score, mean_squared_log_error, mean_absolute_error
+        #print('self.z inside calculateErrorScores', self.z)
         z, zPredict = self.z, self.zPredict
+        #print('shape z, zPredict', np.shape(z), np.shape(zPredict)) 
+        #print('zPredict', zPredict)
         self.mse = mean_squared_error(z, zPredict)
         self.r2 = r2_score(z, zPredict)
+        print('Inside calError self.r2, self.mse ', self.r2, self.mse)
         
         #print("Mean squared error: %.4f" % self.mse)
         #print('R2 score: %.4f' % self.r2)
@@ -571,6 +576,7 @@ class LeastSquares:
         term4 = -0.2*np.exp(-(9*x-4)**2 - (9*y-7)**2)
         return term1 + term2 + term3 + term4 
 
+################################################################################################
 
 class Problem:
     def __init__(self, x, y, z, trueFunction=False):
@@ -581,10 +587,10 @@ class Problem:
         else:
             self.trueFunction = self.frankeFunction
 
-    def preditionAndPlot(self, xPlotTest, yPlotTest, zPlotTest, model='ridge', degree=5, lambdaValue=0, maxIterations=100000, plotResiduals=False, testPercentage=0):
-        xFlat = xPlotTest.rehsape(-1, 1)#np.reshape(xPlotTest, -1, 1)
-        yFlat = yPlotTest.rehsape(-1, 1)#yFlat = #np.reshape(yPlotTest, -1, 1)
-        zFlat = zPlotTest.rehsape(-1, 1)#        zFlat = #np.reshape(zPlotTest, -1, 1)
+    def preditionAndPlot(self, xPlotTest, yPlotTest, zPlotTest, model='ridge', degree=5, lambdaValue=0, maxIterations=100000, plotResiduals=False, testPercentage=0, plot=False):
+        xFlat = np.reshape(xPlotTest, -1, 1)#np.reshape(xPlotTest, -1, 1)
+        yFlat = np.reshape(yPlotTest, -1, 1)#yFlat = #np.reshape(yPlotTest, -1, 1)
+        zFlat = np.reshape(zPlotTest, -1, 1)#        zFlat = #np.reshape(zPlotTest, -1, 1)
         IndexSplit = int(round(len(xFlat)*(1-testPercentage/100.)))
         
         xTrain = xFlat[0:IndexSplit]
@@ -594,21 +600,30 @@ class Problem:
         xTest = xFlat[IndexSplit:]
         yTest = yFlat[IndexSplit:]
         zTest = zFlat[IndexSplit:]
-        print('\n len(zTest), len(zTrain), len(zFlat) \n',len(zTest), len(zTrain), len(zFlat) )
-        print('\n len(xTest), len(xTrain), len(xFlat) \n',len(xTest), len(xTrain), len(xFlat) )
+        print(len(xTest), len(xTrain), len(yTest), len(yTrain), \
+              len(zTest), np.shape(zTrain))
+        #print('\n len(zTest), len(zTrain), len(zFlat) \n',len(zTest), len(zTrain), len(zFlat) )
+        #print('\n len(xTest), len(xTrain), len(xFlat) \n',len(xTest), len(xTrain), len(xFlat) )
 
         if model=='ridge':
             ls = LeastSquares(self.xPlotOrg, self.yPlotOrg, self.zPlotOrg, degree=degree, trueFunction=self.trueFunction,\
                  lambdaValue=lambdaValue)
             ls.createDesignMatrix(xTrain, yTrain)
-            print('\n ls design train \n', ls.XHat)
+            #print('\n ls design train \n', ls.XHat)
             ls.estimate(zTrain)
             #x = np.reshape(xPlotTest, -1, 1) 
             #y = np.reshape(yPlotTest, -1, 1)  
             #self.z = xPlotTest, yPlotTest, zPlotTest
             ls.createDesignMatrix(xTest, yTest)
-            print('\n ls design Test \n', ls.XHat)
+            #print('\n ls design Test \n', ls.XHat)
             ls.predict()
+            ls.z = zTest
+            #print('zTest before calculateErrorScores ', zTest)
+            ls.calculateErrorScores()
+            self.mse = ls.mse
+            self.r2 = ls.r2
+            print('In calcPlot mse, r2',self.mse, self.r2) 
+            '''
             xShape  = np.shape(xPlotTest)
             xShapeX = int(round(xShape[0]*(1-testPercentage/100.)))
             xShapeY = int(round(xShape[1]*(1-testPercentage/100.)))
@@ -622,7 +637,8 @@ class Problem:
             zPlotTest = xTest.reshape(xShapeX, xShapeY)#(np.reshape(zPredict, np.shape(zPlot))).T
             zPlotTest = yTest.reshape(yShapeX, yShapeY)#(np.reshape(zPredict, np.shape(zPlot))).T
             zPlotTest = zTest.reshape(zShapeX, zShapeY)#(np.reshape(zPredict, np.shape(zPlot))).T
-            ls.plot(xTest=xPlotTest, yTest=yPlotTest, zTest=zPlotTest)
+            if plot:            
+                ls.plot(xTest=xPlotTest, yTest=yPlotTest, zTest=zPlotTest)
             if plotResiduals:
                 ls.calculateResiduals()
             #fig, ax = plt.subplots()
@@ -630,6 +646,7 @@ class Problem:
                 plt.figure()
                 n, bins, patches = plt.hist(ls.residuals, 50, density=True, \
                 facecolor='green', alpha=0.75)
+            '''
             
         else:
             lasso=linear_model.Lasso(alpha=lambdaValue, fit_intercept=False, max_iter=maxIterations)
@@ -640,7 +657,8 @@ class Problem:
             ls = LeastSquares(self.xPlot, self.yPlot, self.zPlot, degree, trueFunction=self.trueFunction,\
                  lambdaValue=lambdaValue)
             zPredict = lasso.predict(XHatLasso)
-            ls.plot(zPredict)
+            if plot:
+                ls.plot(zPredict)
 
         
     def lsKfold(self, numberOfFolds=10, maxDegree=5):
