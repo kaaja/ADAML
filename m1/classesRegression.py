@@ -410,10 +410,11 @@ class LeastSquares:
             ax.set_ylabel('Running mean MSE')
             
             fig4, ax4 = plt.subplots()
-            ax4.plot(np.arange(1,len(self.mseBootStrapMA)+1), (np.sqrt(self.varMSE)/self.mseBootStrapMA)*100)
-            ax4.set_title('Bootstrap \n Running (Sd(MSE)/Mean MSE)*100')
+            #ax4.plot(np.arange(1,len(self.mseBootStrapMA)+1), (np.sqrt(self.varMSE)/self.mseBootStrapMA)*100)
+            ax4.plot(np.arange(1,len(self.mseBootStrapMA)+1), (np.sqrt(self.varMSE)))
+            ax4.set_title('Bootstrap \n Running (Sd(MSE))')
             ax4.set_xlabel('Number of bootsraps')
-            #ax4.set_ylabel('Running variance MSE')
+            #ax4.set_ylabel(r'$Sd(\beta)$')
             
             fig2, ax2 = plt.subplots()
             ax2.plot(np.arange(1,len(self.R2BootstrapMA )+1), self.R2BootstrapMA )
@@ -422,10 +423,11 @@ class LeastSquares:
             ax2.set_ylabel('Running Mean R2')
             
             fig3, ax3 = plt.subplots()
-            ax3.plot(np.arange(1,len(self.R2BootstrapMA )+1), self.varianceBetaBootstrap)
+            ax3.plot(np.arange(1,len(self.R2BootstrapMA )+1), \
+             np.sqrt(self.varianceBetaBootstrap)/self.betaRunning)
             ax3.set_title('Bootstrap \n Sd(\Beta)/Beta (Running)')
             ax3.set_xlabel('Number of bootsraps')
-            ax3.set_ylabel('Var(Beta)')
+            ax3.set_ylabel(r'$Sd(\beta)$')
             
             '''
             fig5, ax5 = plt.subplots()
@@ -1230,10 +1232,10 @@ class Problem:
         #for trainingMethod, testingMethod, bvModel, label in zip(mseMethods, mseMethodsTesting, biasVariance, legends): # mseTrainingBS, mseTrainingKF,
             #ax.plot(ridgeLambdas[:lastDegree], trainingMethod[:lastDegree])#, label=label)
             #ax2.plot(ridgeLambdas, testingMethod)#, label=label)
-            #ax3.plot(degrees[:lastDegree], bvModel[:lastDegree])
+            #ax3.plot(degrees[:lastDegree]punishmenParameterAnalysis, bvModel[:lastDegree])
             fig, (ax,ax2) = plt.subplots(1,2, figsize=(12.5,5))  # 1 row, 2 columns
-            ax.set_xscale('log', basex=2)
-            ax2.set_xscale('log', basex=2)
+            #ax.set_xscale('log', basex=2)
+            #ax2.set_xscale('log', basex=2)
 
             ax.plot(np.log2(lambdaForPlot[method]), mseMethodsTesting[method+1])#, label=label)
             ax2.plot(np.log2(lambdaForPlot[method]), biasVariance[method+1])#, label=label)
@@ -1244,11 +1246,13 @@ class Problem:
             #ax2.plot(lambdaForPlot[method], biasVariance[method+1])#, label=label)
 
             ax.set_title(modelNames[method]+'\n Test MSE', fontsize = fontSize*1.5)
-            ax.set_xlabel(r'$2^\lambda$', fontsize = fontSize*1.25)
+            #ax.set_xlabel(r'$2^\lambda$', fontsize = fontSize*1.25)
+            ax.set_xlabel(r'$\log(\lambda)$', fontsize = fontSize*1.25)
             ax.set_xticks(np.log2(lambdaForPlot[method]))
 
             ax2.set_title(modelNames[method]+'\n Variance share MSE', fontsize = fontSize*1.5)
-            ax2.set_xlabel(r'$2^\lambda$', fontsize = fontSize*1.25)
+            #ax2.set_xlabel(r'$2^\lambda$', fontsize = fontSize*1.25)
+            ax2.set_xlabel(r'$\log(\lambda)$', fontsize = fontSize*1.25)
             ax2.set_xticks(np.log2(lambdaForPlot[method]))
 
             ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
