@@ -180,6 +180,7 @@ class LeastSquares:
         self.R2Bootstrap = np.zeros(bootstraps)
         self.mseTraining = np.zeros(bootstraps)
         self.R2Training = np.zeros(bootstraps)
+
         
         self.bootstraps = bootstraps
         betaList = [] 
