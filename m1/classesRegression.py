@@ -190,6 +190,7 @@ class LeastSquares:
         noiseDict2 = OrderedDict()
         totalErrorDict = OrderedDict()
         varianceDict = OrderedDict()
+        residualDictUnknownF = OrderedDict()
 
         for i in range(self.numberOfObservations):
             for j in range(self.numberOfObservations):
@@ -197,13 +198,22 @@ class LeastSquares:
                 noiseDict[i, j]      = []
                 #noiseDict2[i, j]      = []
                 totalErrorDict[i, j] = []
+                residualDictUnknownF[i,j] = []
         bias2Matrix = np.zeros((self.numberOfObservations, self.numberOfObservations))
         varianceMatrix = np.zeros_like(bias2Matrix)
         noiseMatrix = np.zeros_like(bias2Matrix)
         totalErrorMatrix = np.zeros_like(bias2Matrix)
         totalErrorMatrixForTesting = np.zeros_like(bias2Matrix)
-        
+
         zPredictMeanMatrix = np.zeros((self.numberOfObservations, self.numberOfObservations))
+        
+		# Bias-variance decomposition when f is unknows
+        mseMatrixUnknownF = np.zeros((self.numberOfObservations, self.numberOfObservations)) # Method
+        sdMatrixUnknownF = np.zeros((self.numberOfObservations, self.numberOfObservations)) # Method
+        bias2MatrixUnknownF = np.zeros((self.numberOfObservations, self.numberOfObservations)) # Method
+        totalMatrixUnknownF = np.zeros((self.numberOfObservations, self.numberOfObservations)) # Method
+        
+
 
         
         for iteration in range(self.bootstraps):
@@ -250,7 +260,9 @@ class LeastSquares:
                 noiseDict[coordinate].append((self.z[index] - self.trueFunction(self.x[index], self.y[index]))**2)
                 totalErrorDict[coordinate].append((self.z[index] - self.zPredict[index])**2)
                 zPredictMatrix[coordinate[0]][coordinate[1]] = self.zPredict[index]
+                residualDictUnknownF[coordinate].append(self.z[index] - self.zPredict[index]) # unknown f
             models.append(zPredictMatrix)
+                
             
             self.error2[iteration] = 0            
             for i in range(len(self.x)):
@@ -261,7 +273,6 @@ class LeastSquares:
         for key, index in zip(zPredictDict, range(len(zPredictDict))):
             zPredictMean = np.nanmean(zPredictDict[key])
             varianceMatrix[key[0], key[1]] = np.nanvar(zPredictDict[key])
-            bias2Matrix[key[0], key[1]] = (zPredictMean - fValues[index])**2
             noiseMatrix[key[0], key[1]] = np.nanmean(noiseDict[key])
             totalErrorMatrix[key[0], key[1]] = np.nanmean(totalErrorDict[key])
             totalErrorMatrixForTesting[key[0], key[1]] = varianceMatrix[key[0], key[1]] + bias2Matrix[key[0], key[1]]\
@@ -269,6 +280,12 @@ class LeastSquares:
                     
             zPredictMeanMatrix[key[0], key[1]] = np.nanmean(zPredictDict[key])
 
+			# Bias variance unknown f
+            mseMatrixUnknownF[key[0], key[1]] = np.mean([(residualDictUnknownF[key][i])**2 for i in range(len(residualDictUnknownF[key]))])#np.mean( (residualDictUnknownF[key])**2 )
+            sdMatrixUnknownF[key[0], key[1]] = np.var( residualDictUnknownF[key] )
+            bias2MatrixUnknownF[key[0], key[1]] = ( np.mean(residualDictUnknownF[key]) )**2
+            totalMatrixUnknownF[key[0], key[1]] = sdMatrixUnknownF[key[0], key[1]] + \
+bias2MatrixUnknownF[key[0], key[1]]
          
         
         # bias-variance over all observations
@@ -279,6 +296,14 @@ class LeastSquares:
         self.totalError = np.nanmean(np.reshape(totalErrorMatrix, -1, 1))
         self.totalErrorForTesting = np.nanmean(np.reshape(totalErrorMatrixForTesting, -1, 1))
 
+		# Bias-variance unknown f
+        self.mseUnknownF = np.nanmean(np.reshape(mseMatrixUnknownF, -1, 1))
+        self.sdUnknownF = np.nanmean(np.reshape(sdMatrixUnknownF, -1, 1))
+        self.bias2UnknownF = np.nanmean(np.reshape(bias2MatrixUnknownF, -1, 1))
+        self.totalUnknownF = np.nanmean(np.reshape(totalMatrixUnknownF, -1, 1))
+
+
+		# Alternative bias-variance method
         variancePython = 0
         for prediction in models:
             for row in range(self.numberOfObservations):
@@ -289,13 +314,14 @@ class LeastSquares:
                              prediction[row][col]) '''
                         variancePython += (zPredictMeanMatrix[row][col] - prediction[row][col])**2
         variancePython = np.sqrt(variancePython)
-        variancePython /= fValues.size * self.bootstraps
+        variancePython /= (fValues.size * self.bootstraps)
         self.variancePython = variancePython
-        
         zPredictMeanMatrix = np.reshape(zPredictMeanMatrix, -1, 1)
         bias_2 = norm(zPredictMeanMatrix - fValues)
         bias_2 /= fValues.size #example python
         self.biasPython = bias_2
+
+	
         
         self.error2 = np.sum(self.error2)
         self.mseBootStrapMA = self.movingAvg(self.mseBootstrap)
@@ -305,7 +331,7 @@ class LeastSquares:
         self.varMSE = self.runningVarianceVector(self.mseBootstrap)
 
         
-        # Bias-variance for cases when true function unknown
+        # Bias-variance for cases when true function unknown, over MSEs
         self.varianceMSERealData = np.var(self.mseBootstrap)
         self.meanMSEsquaredRealData = (np.mean(self.mseBootstrap))**2
         self.mseTotalRealData = norm(self.mseBootstrap)
@@ -1083,6 +1109,53 @@ class Problem:
 
     def bootstrapParameterVariance(self, bootstraps=100, plot=False):
         self.lsTrain.errorBootstrap(bootstraps=bootstraps, plot=plot)
+
+    def varianceBiasDecompositionBootsrap(self, maxDegree = 25, bootstraps=100):
+        degrees = np.arange(1,maxDegree)
+        mseUnknownF = np.zeros(len(degrees))
+        sdUnknownF = np.zeros(len(degrees))
+        bias2UnknownF = np.zeros(len(degrees))
+        totalUnknownF = np.zeros(len(degrees))
+
+        counter = 0
+        for degree in degrees:
+            tst1 = LeastSquares(self.xPlot, self.yPlot, self.zPlot, degree, trueFunction=self.FrankeFunction)
+            tst1.errorBootstrap(bootstraps=100)
+            mseUnknownF[counter] = tst1.mseUnknownF
+            sdUnknownF[counter] = tst1.sdUnknownF
+            bias2UnknownF[counter] = tst1.bias2UnknownF
+            totalUnknownF[counter] = tst1.totalUnknownF
+            counter += 1
+     
+        fig, (ax, ax2) = plt.subplots(1,2,  sharex=True)
+        fontSize  = 15
+        #fig.suptitle('Bias-variance\ndecomposition')#, fontsize=fontSize)
+        #fig.subplots_adjust(top=0.88)
+        ax.set_title('Pure values')
+        ax2.set_title('Share of total MSE')
+        ax.plot(degrees, bias2UnknownF)
+        ax.plot(degrees, sdUnknownF)
+        ax.plot(degrees, totalUnknownF)
+        ax2.plot(degrees, bias2UnknownF/totalUnknownF)
+        ax2.plot(degrees, sdUnknownF/totalUnknownF)
+        xTicks = np.arange(5,maxDegree+1, 5)
+
+        ax.set_xlabel('Degrees of freedom', fontsize = fontSize*1.)
+        ax2.set_xlabel('Degrees of freedom', fontsize = fontSize*1.)
+        
+        ax.set_xticks(xTicks)
+        ax2.set_xticks(xTicks)
+        legends = ['bias', 'variance', 'total']#, 'MSE scikit']
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+        ax.legend(legends, loc='center left', bbox_to_anchor=(0, -0.35)\
+           , fontsize = fontSize)
+        box = ax2.get_position()
+        ax2.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+        ax2.legend(legends, loc='center left', bbox_to_anchor=(0, -0.3)\
+           , fontsize = fontSize)
+        #plt.tight_layout()
+        #plt.show()
 
 
 
