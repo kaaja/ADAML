@@ -39,21 +39,16 @@ class LeastSquares:
         self.numberOfObservations = len(self.xOrg)
         self.xPlot, self.yPlot, self.zPlot = xPlot, yPlot, zPlot
         self.x, self.y, self.z = np.reshape(xPlot, -1, 1), np.reshape(yPlot, -1, 1), np.reshape(zPlot, -1, 1)
-
         self.degree = degree
         
-    def createDesignMatrix(self, x=None, y=None):
-        
+    def createDesignMatrix(self, x=None, y=None):        
         if isinstance(x, np.ndarray):
-            None
-            
+            None          
         else:
             x, y = self.x, self.y
-
         self.XHat = np.c_[x, y] 
         poly = PolynomialFeatures(self.degree)
         self.XHat = poly.fit_transform(self.XHat)
-
 
     def estimate(self, z=0):
         if isinstance(z, np.ndarray):
@@ -68,9 +63,7 @@ class LeastSquares:
         U, s, Vt = linalg.svd(self.XHat, full_matrices=False)
         d = s / (s[:, np.newaxis].T ** 2 + alphas[:, np.newaxis])
         self.betaHat = np.dot(d * U.T.dot(self.z), Vt).T
-        self.betaHat = np.squeeze(self.betaHat)
-
-        
+        self.betaHat = np.squeeze(self.betaHat)       
     
     def predict(self):
         self.zPredict = self.XHat.dot(self.betaHat)
@@ -173,8 +166,7 @@ class LeastSquares:
         return varianceVector
 
     
-    def errorBootstrap(self, bootstraps=2, plot=False): 
-        models = []
+    def errorBootstrap(self, bootstraps=2, plot=False, numberOfParamters=3): 
         
         self.mseBootstrap = np.zeros(bootstraps)
         self.R2Bootstrap = np.zeros(bootstraps)
@@ -185,25 +177,11 @@ class LeastSquares:
         self.bootstraps = bootstraps
         betaList = [] 
         self.error2 = np.zeros(bootstraps)
-        zPredictDict = OrderedDict() 
-        noiseDict = OrderedDict()
-        noiseDict2 = OrderedDict()
-        totalErrorDict = OrderedDict()
-        varianceDict = OrderedDict()
         residualDictUnknownF = OrderedDict()
 
         for i in range(self.numberOfObservations):
             for j in range(self.numberOfObservations):
-                zPredictDict[i, j]  = []
-                noiseDict[i, j]      = []
-                #noiseDict2[i, j]      = []
-                totalErrorDict[i, j] = []
                 residualDictUnknownF[i,j] = []
-        bias2Matrix = np.zeros((self.numberOfObservations, self.numberOfObservations))
-        varianceMatrix = np.zeros_like(bias2Matrix)
-        noiseMatrix = np.zeros_like(bias2Matrix)
-        totalErrorMatrix = np.zeros_like(bias2Matrix)
-        totalErrorMatrixForTesting = np.zeros_like(bias2Matrix)
 
         zPredictMeanMatrix = np.zeros((self.numberOfObservations, self.numberOfObservations))
         
@@ -213,12 +191,8 @@ class LeastSquares:
         bias2MatrixUnknownF = np.zeros((self.numberOfObservations, self.numberOfObservations)) # Method
         totalMatrixUnknownF = np.zeros((self.numberOfObservations, self.numberOfObservations)) # Method
         
-
-
         
         for iteration in range(self.bootstraps):
-            zPredictMatrix = np.empty((self.numberOfObservations, self.numberOfObservations))
-            zPredictMatrix[:] = np.nan
             # Training
             trainingIndices = [(np.random.randint(0, high=self.numberOfObservations), \
                       np.random.randint(0, high=self.numberOfObservations)) \
@@ -256,30 +230,14 @@ class LeastSquares:
             
             testIndicesTuple = tuple(map(tuple, testIndices))
             for coordinate, index in zip(testIndicesTuple, range(len(self.zPredict))):
-                zPredictDict[coordinate].append(self.zPredict[index])
-                noiseDict[coordinate].append((self.z[index] - self.trueFunction(self.x[index], self.y[index]))**2)
-                totalErrorDict[coordinate].append((self.z[index] - self.zPredict[index])**2)
-                zPredictMatrix[coordinate[0]][coordinate[1]] = self.zPredict[index]
                 residualDictUnknownF[coordinate].append(self.z[index] - self.zPredict[index]) # unknown f
-            models.append(zPredictMatrix)
                 
             
             self.error2[iteration] = 0            
             for i in range(len(self.x)):
                 self.error2[iteration] += (self.z[i] - self.zPredict[i])**2
             
-        xForFunction, yForFunction = np.ravel(self.xPlot), np.ravel(self.yPlot)
-        fValues = self.trueFunction(xForFunction, yForFunction)
-        for key, index in zip(zPredictDict, range(len(zPredictDict))):
-            zPredictMean = np.nanmean(zPredictDict[key])
-            varianceMatrix[key[0], key[1]] = np.nanvar(zPredictDict[key])
-            noiseMatrix[key[0], key[1]] = np.nanmean(noiseDict[key])
-            totalErrorMatrix[key[0], key[1]] = np.nanmean(totalErrorDict[key])
-            totalErrorMatrixForTesting[key[0], key[1]] = varianceMatrix[key[0], key[1]] + bias2Matrix[key[0], key[1]]\
-                                                        + noiseMatrix[key[0], key[1]]
-                    
-            zPredictMeanMatrix[key[0], key[1]] = np.nanmean(zPredictDict[key])
-
+        for key, index in zip(residualDictUnknownF, range(len(residualDictUnknownF))):
 			# Bias variance unknown f
             mseMatrixUnknownF[key[0], key[1]] = np.mean([(residualDictUnknownF[key][i])**2 for i in range(len(residualDictUnknownF[key]))])#np.mean( (residualDictUnknownF[key])**2 )
             sdMatrixUnknownF[key[0], key[1]] = np.var( residualDictUnknownF[key] )
@@ -288,58 +246,40 @@ class LeastSquares:
 bias2MatrixUnknownF[key[0], key[1]]
          
         
-        # bias-variance over all observations
-        self.bias2 = np.nanmean(np.reshape(bias2Matrix, -1, 1))
-        self.variance = np.nanmean(np.reshape(varianceMatrix, -1, 1))
-
-        self.noise = np.nanmean(np.reshape(noiseMatrix, -1, 1))
-        self.totalError = np.nanmean(np.reshape(totalErrorMatrix, -1, 1))
-        self.totalErrorForTesting = np.nanmean(np.reshape(totalErrorMatrixForTesting, -1, 1))
-
-		# Bias-variance unknown f
+		# Bias-variance average all positions
         self.mseUnknownF = np.nanmean(np.reshape(mseMatrixUnknownF, -1, 1))
         self.sdUnknownF = np.nanmean(np.reshape(sdMatrixUnknownF, -1, 1))
         self.bias2UnknownF = np.nanmean(np.reshape(bias2MatrixUnknownF, -1, 1))
         self.totalUnknownF = np.nanmean(np.reshape(totalMatrixUnknownF, -1, 1))
-
-
-		# Alternative bias-variance method
-        variancePython = 0
-        for prediction in models:
-            for row in range(self.numberOfObservations):
-                for col in range(self.numberOfObservations):
-                    if not np.isnan(prediction[row][col]):
-                        '''print('row, col, ', row, col, '\n zPredictMeanMatrix[row][col] \n', \
-                             zPredictMeanMatrix[row][col], '\n prediction[row][col] \n', \
-                             prediction[row][col]) '''
-                        variancePython += (zPredictMeanMatrix[row][col] - prediction[row][col])**2
-        variancePython = np.sqrt(variancePython)
-        variancePython /= (fValues.size * self.bootstraps)
-        self.variancePython = variancePython
-        zPredictMeanMatrix = np.reshape(zPredictMeanMatrix, -1, 1)
-        bias_2 = norm(zPredictMeanMatrix - fValues)
-        bias_2 /= fValues.size #example python
-        self.biasPython = bias_2
-
-	
         
         self.error2 = np.sum(self.error2)
         self.mseBootStrapMA = self.movingAvg(self.mseBootstrap)
         self.R2BootstrapMA = self.movingAvg(self.R2Bootstrap)
-        self.betaRunning = self.movingAvg(betaList)
-        self.varianceBetaBootstrap =  self.runningVariance(betaList)
+        self.betaRunning = np.zeros((len(betaList[0]), len(betaList)))
+        self.varianceBetaBootstrap = np.zeros((len(betaList[0]), len(betaList)))
+        '''
+        for i in range(len(betaList)):
+            self.betaRunning[i, :] = self.movingAvg(betaList[i])
+            self.varianceBetaBootstrap[i, :] = self.runningVariance(betaList[i])
+        #self.betaRunning = self.movingAvg(betaList)
+        
         self.varMSE = self.runningVarianceVector(self.mseBootstrap)
+        '''
+        self.varianceBetaBootstrap =  self.runningVariance(betaList)
 
-        
-        # Bias-variance for cases when true function unknown, over MSEs
-        self.varianceMSERealData = np.var(self.mseBootstrap)
-        self.meanMSEsquaredRealData = (np.mean(self.mseBootstrap))**2
-        self.mseTotalRealData = norm(self.mseBootstrap)
-        self.mseTotalRealData = self.mseTotalRealData**2/self.bootstraps
-
-        
-        
         if plot:
+            legends = []
+            fig, ax = plt.subplots()
+            
+            for i in range(numberOfParamters):
+                ax.plot(np.arange(1,np.shape(self.varianceBetaBootstrap)[0]+1), self.varianceBetaBootstrap[:,i])
+                legends.append(r'$\beta_%d$' %i)
+            ax.set_title('Bootstrap \n Running Var')
+            ax.set_xlabel('Number of bootsraps')
+            ax.set_ylabel('Running Var')
+            fig.legend(legends)
+            
+            '''
             fig, ax = plt.subplots()
             ax.plot(np.arange(1,len(self.mseBootStrapMA)+1), self.mseBootStrapMA)
             ax.set_title('Bootstrap \n Running Mean MSE')
@@ -365,6 +305,7 @@ bias2MatrixUnknownF[key[0], key[1]]
             ax3.set_title('Bootstrap \n Sd(\Beta)/Beta (Running)')
             ax3.set_xlabel('Number of bootsraps')
             ax3.set_ylabel(r'$Sd(\beta)$')
+            '''
             
 
 
@@ -414,15 +355,6 @@ bias2MatrixUnknownF[key[0], key[1]]
             xTest1D = self.xPlot[testIndices[:,1], testIndices[:,0]]
             yTest1D = self.yPlot[testIndices[:,1], testIndices[:,0]]
             zTest1D = self.zPlot[testIndices[:,1], testIndices[:,0]]
-            '''
-            print('\n testIndices \n',testIndices)
-            print('\n xPlot \n',self.xPlot)
-            print('\n xTest1D \n',xTest1D)
-
-            print('\n testIndices \n',testIndices)
-            print('\n yPlot \n',self.yPlot)
-            print('\n yTest1D \n',yTest1D)
-            '''
             
             indices_rows = indices.view([('', indices.dtype)] * indices.shape[1])
             testIndices_rows = testIndices.view([('', testIndices.dtype)] * testIndices.shape[1])
@@ -555,6 +487,7 @@ class Problem:
 
         
     def lsKfold(self, numberOfFolds=10, maxDegree=5):
+        " Runs K-fold "
         self.maxDegree = maxDegree
         self.numberOfFolds = numberOfFolds
         self.degrees = np.arange(1, self.maxDegree+1)
@@ -581,6 +514,7 @@ class Problem:
             self.varBetasTraining.append(ls.varBeta)
             self.betasTraining.append(ls.betaHat)
 
+            '''
             lsBS = LeastSquares(self.xPlot, self.yPlot, self.zPlot, degree, trueFunction=self.trueFunction)
             lsBS.errorBootstrap(bootstraps=self.bootstraps, plot=False)
             self.biasBS.append(lsBS.bias2)
@@ -595,7 +529,7 @@ class Problem:
             self.biasRealDataBS.append(lsBS.meanMSEsquaredRealData)
             self.varianceRealDataBS.append(lsBS.varianceMSERealData)
             self.totalMSErealDataBS.append(lsBS.mseTotalRealData)
-
+            '''
             lsKF = LeastSquares(self.xPlot, self.yPlot, self.zPlot, degree, trueFunction=self.trueFunction)
             lsKF.kFold(numberOfFolds=self.numberOfFolds)
             lsKF.calculateVarianceBeta()
@@ -616,6 +550,9 @@ class Problem:
             self.betasKF.append(lsKF.betaList)
             
     def varBeta(self, model='ols'):     
+        "Compute parameter variance based on theoretical expression assuming\
+         normally distributed error terms.\
+         Plots histogram of variance for the three first coefficients."
 
         if model == 'ols':
             varBetasTrainingTobetasTraining = []
@@ -671,6 +608,7 @@ class Problem:
 
         
     def mseFigures(self, lastDegree=5):
+        " Plots Training, testing MSE, R2"
         fig, (ax,ax2) = plt.subplots(1,2, figsize=(12.5,5))  # 1 row, 2 columns
         fontSize  = 16
         legends = ['K-fold', 'Training'] #, 'Bootstrap MSE', 'K-fold MSE'
@@ -694,10 +632,7 @@ class Problem:
         ax2.set_xticks(xTicks)
         ax2.set_ylim(0,1)
         ax2.set_yticks(np.arange(0,1+.1, .1))
-
         legendsAx2 = [r'$Bias^2$', 'Variance']
-
-
         box = ax.get_position()
         ax.set_position([box.x0, box.y0, box.width * 1.0, box.height*.8])
         ax.legend(legends, loc='center left', bbox_to_anchor=(0.1, -0.55), \
@@ -738,13 +673,15 @@ class Problem:
         ax.tick_params(axis='both', which='major', labelsize=fontSize*1.25)
         
     def biasVariance(self, mses):
+        " Bias variance-decomposition \
+        of MSE of MSEs"
         varianceMse = np.var(mses)
         meanMseSquared = (np.mean(mses))**2
         mseTotal = varianceMse + meanMseSquared
         return varianceMse, meanMseSquared, mseTotal
         
     def mseAllModels(self, noise=None, franke=False, maxDegree=5, numberOfFolds = 10, ridgeLambda = 1, lassoLambda = .001, maxIterations=10000, plotResiduals=False, nBins=50, residualsDegree=1):
-        
+        "Computes MSE train and test all models."
         self.ridgeLambda = ridgeLambda
         self.lassoLambda = lassoLambda
         self.noise = noise
@@ -886,6 +823,7 @@ class Problem:
 
 
     def mseAllModelsPlot(self, lastDegree=5):
+        "Plot of results from mseAllModels"
         # Plotting
         fig, (ax,ax2, ax3) = plt.subplots(1,3, figsize=(12.5,5))  # 1 row, 2 columns
         fontSize  = 16
@@ -948,6 +886,8 @@ class Problem:
                                    startLambdaLasso = 0.000125, numberOfPoints = 6,\
                                     maxIterations = 100000, adjustmentFactorRidge=1.5, \
                                     adjustmentFactorLasso=1.5):
+        "Runs lambda and Ridge for different punishment parameters.\
+         Plots the results"
 
         bootstraps = 100
 
@@ -1111,6 +1051,7 @@ class Problem:
         self.lsTrain.errorBootstrap(bootstraps=bootstraps, plot=plot)
 
     def varianceBiasDecompositionBootsrap(self, maxDegree = 25, bootstraps=100):
+        " Runs the full bias variance decomposition using the Bootstrap method"
         degrees = np.arange(1,maxDegree)
         mseUnknownF = np.zeros(len(degrees))
         sdUnknownF = np.zeros(len(degrees))
@@ -1157,6 +1098,9 @@ class Problem:
         #plt.tight_layout()
         #plt.show()
 
+    def betaVariancePlotBootstrap(self, degree = 5, bootstraps=100, numberOfParamters=3):
+        tst1 = LeastSquares(self.xPlot, self.yPlot, self.zPlot, degree, trueFunction=self.FrankeFunction)
+        tst1.errorBootstrap(bootstraps=bootstraps, plot=True)
 
 
 def createFrankeData(noise=False, plot=False, observations=20):
