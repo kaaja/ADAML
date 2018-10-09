@@ -186,9 +186,25 @@ Next we compute the derivative of the cost function wrt. the hidden layer weight
 &= \sum_{k=1}^{N_L} (a_k^L - t_k)\; f'(z_k^L)\; \frac{\partial (\sum_{m=1}^{N_L} w_{mk}^L a_m^l + b_k^L)}{\partial a_j^l}\; f'(z_j^l)\; a_i^{l-1}\\
 &= \sum_{k=1}^{N_L} (a_k^L - t_k)\; f'(z_k^L)\;w_{jk}^L\; f'(z_j^l)\; a_i^{l-1}\\
 &= \sum_{k=1}^{N_L} \delta_k^L \;w_{jk}^L\; f'(z_j^l)\; a_i^{l-1}\\
-&= \delta_j\; a_i^{l-1}.
+&= \delta_j^l\; a_i^{l-1}.
 \end{align*}
 
-$\frac{\partial C}{\partial w_{ij}^l} = \delta_j\; a_i^{l-1}$ can now be inserted into the gradient descent expression for the weights at the top.
+$\frac{\partial C}{\partial w_{ij}^l} = \delta_j\; a_i^{l-1}$ can now be inserted into the gradient descent expression for the weights at the top.\\
+
+Now we need to do the same for the biases. The derivations are exactly the same as for the weights, with the difference that the last chain in the chain rule now becomes $1$ and not $a_i$, since $\frac{\partial}{\partial b_j^l}\Big(\sum_{m=1}^{N_L} (w_{mj}^l a_m^{l-1} + b_j^l)\Big) = 1$. The same applies for for the output layer bias $b_j^L$. Full derivations can be found on p. 26 in my exercise notebook nr 1.\\ 
+
+For the biases we end up with
+
+\begin{align}
+	\frac{\partial C}{\partial b_j^L} &= \delta_j^L
+\end{align}
+
+and 
+
+\begin{align}
+	\frac{\partial C}{\partial b_j^l} &= \delta_j^l
+\end{align}
+
+The biases are also updated by gradient descent, shown at the top of the page, but with $b$ instead of $w$. 
 
 \end{document}
